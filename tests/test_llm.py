@@ -19,25 +19,12 @@ from tests.conftest import make_iteration, mock_llm_response
 
 
 # ---------------------------------------------------------------------------
-# Helper: create a mock Anthropic response with NO tool_use block
-# ---------------------------------------------------------------------------
-
-def _mock_text_only_response(text="I'm thinking..."):
-    text_block = MagicMock()
-    text_block.type = "text"
-    text_block.text = text
-    response = MagicMock()
-    response.content = [text_block]
-    return response
-
-
-# ---------------------------------------------------------------------------
-# get_next_action — successful extraction
+# get_next_action — delegates to provider
 # ---------------------------------------------------------------------------
 
 class TestGetNextAction:
     @patch("hardware_agent.core.llm._load_prompt")
-    @patch("hardware_agent.core.llm.anthropic.Anthropic")
+    @patch("hardware_agent.core.providers.anthropic.anthropic.Anthropic")
     def test_extracts_tool_call(self, MockAnthropic, mock_load_prompt, mock_agent_context):
         mock_load_prompt.return_value = "system prompt {DEVICE_CONTEXT}{ENVIRONMENT}{COMMUNITY_KNOWLEDGE}{ITERATION}"
         mock_response = mock_llm_response(
@@ -55,7 +42,7 @@ class TestGetNextAction:
         assert result.id == "toolu_check_installed_001"
 
     @patch("hardware_agent.core.llm._load_prompt")
-    @patch("hardware_agent.core.llm.anthropic.Anthropic")
+    @patch("hardware_agent.core.providers.anthropic.anthropic.Anthropic")
     def test_passes_community_knowledge(self, MockAnthropic, mock_load_prompt, mock_agent_context):
         mock_load_prompt.return_value = "{DEVICE_CONTEXT}{ENVIRONMENT}{COMMUNITY_KNOWLEDGE}{ITERATION}"
         mock_response = mock_llm_response("bash", {"command": "lsusb"})
@@ -71,13 +58,13 @@ class TestGetNextAction:
         llm = LLMClient()
         llm.get_next_action(mock_agent_context, community_knowledge=community_data)
 
-        # Verify messages.create was called
+        # Verify messages.create was called with community knowledge in system prompt
         call_kwargs = mock_client_instance.messages.create.call_args[1]
         system_prompt = call_kwargs["system"]
         assert "COMMUNITY KNOWLEDGE" in system_prompt
 
     @patch("hardware_agent.core.llm._load_prompt")
-    @patch("hardware_agent.core.llm.anthropic.Anthropic")
+    @patch("hardware_agent.core.providers.anthropic.anthropic.Anthropic")
     def test_appends_loop_breaker(self, MockAnthropic, mock_load_prompt, mock_agent_context):
         mock_load_prompt.return_value = "{DEVICE_CONTEXT}{ENVIRONMENT}{COMMUNITY_KNOWLEDGE}{ITERATION}"
         mock_response = mock_llm_response("give_up", {"reason": "stuck"})
@@ -94,7 +81,7 @@ class TestGetNextAction:
         assert "STOP LOOPING" in call_kwargs["system"]
 
     @patch("hardware_agent.core.llm._load_prompt")
-    @patch("hardware_agent.core.llm.anthropic.Anthropic")
+    @patch("hardware_agent.core.providers.anthropic.anthropic.Anthropic")
     def test_forwards_tools(self, MockAnthropic, mock_load_prompt, mock_agent_context):
         mock_load_prompt.return_value = "{DEVICE_CONTEXT}{ENVIRONMENT}{COMMUNITY_KNOWLEDGE}{ITERATION}"
         mock_response = mock_llm_response("bash", {"command": "ls"})
@@ -111,6 +98,29 @@ class TestGetNextAction:
         assert "complete" in tool_names
         assert "give_up" in tool_names
 
+    @patch("hardware_agent.core.llm._load_prompt")
+    def test_delegates_to_provider(self, mock_load_prompt, mock_agent_context):
+        """Verify LLMClient delegates to the provider's get_next_action."""
+        mock_load_prompt.return_value = "{DEVICE_CONTEXT}{ENVIRONMENT}{COMMUNITY_KNOWLEDGE}{ITERATION}"
+
+        mock_provider = MagicMock()
+        mock_provider.get_next_action.return_value = ToolCall(
+            id="toolu_001", name="bash", parameters={"command": "ls"}
+        )
+
+        llm = LLMClient.__new__(LLMClient)
+        llm.model = "test"
+        llm.provider = mock_provider
+
+        result = llm.get_next_action(mock_agent_context)
+
+        assert result.name == "bash"
+        mock_provider.get_next_action.assert_called_once()
+        # Check that initial_message contains the device name (positional arg)
+        call_args = mock_provider.get_next_action.call_args
+        positional = call_args[0]
+        assert "Rigol DS1054Z" in positional[1]  # initial_message is 2nd arg
+
 
 # ---------------------------------------------------------------------------
 # get_next_action — no tool_use block → ValueError
@@ -118,18 +128,23 @@ class TestGetNextAction:
 
 class TestGetNextActionNoToolUse:
     @patch("hardware_agent.core.llm._load_prompt")
-    @patch("hardware_agent.core.llm.anthropic.Anthropic")
+    @patch("hardware_agent.core.providers.anthropic.anthropic.Anthropic")
     def test_raises_value_error(self, MockAnthropic, mock_load_prompt, mock_agent_context):
         mock_load_prompt.return_value = "{DEVICE_CONTEXT}{ENVIRONMENT}{COMMUNITY_KNOWLEDGE}{ITERATION}"
+        text_block = MagicMock()
+        text_block.type = "text"
+        text_block.text = "I'm thinking..."
+        response = MagicMock()
+        response.content = [text_block]
         mock_client_instance = MockAnthropic.return_value
-        mock_client_instance.messages.create.return_value = _mock_text_only_response()
+        mock_client_instance.messages.create.return_value = response
 
         llm = LLMClient()
         with pytest.raises(ValueError, match="tool_use"):
             llm.get_next_action(mock_agent_context)
 
     @patch("hardware_agent.core.llm._load_prompt")
-    @patch("hardware_agent.core.llm.anthropic.Anthropic")
+    @patch("hardware_agent.core.providers.anthropic.anthropic.Anthropic")
     def test_empty_content_raises(self, MockAnthropic, mock_load_prompt, mock_agent_context):
         mock_load_prompt.return_value = "{DEVICE_CONTEXT}{ENVIRONMENT}{COMMUNITY_KNOWLEDGE}{ITERATION}"
         response = MagicMock()
@@ -275,68 +290,3 @@ class TestBuildSystemPrompt:
         prompt = llm._build_system_prompt(mock_agent_context, None, None)
         assert "pyvisa" in prompt
         assert "pyusb" in prompt
-
-
-# ---------------------------------------------------------------------------
-# _build_messages
-# ---------------------------------------------------------------------------
-
-class TestBuildMessages:
-    def test_initial_user_message(self, mock_agent_context):
-        llm = LLMClient.__new__(LLMClient)
-        llm.model = "test"
-
-        messages = llm._build_messages(mock_agent_context)
-        assert len(messages) == 1
-        assert messages[0]["role"] == "user"
-        assert "Rigol DS1054Z" in messages[0]["content"]
-        assert "Python code" in messages[0]["content"]
-
-    def test_includes_history(self, mock_agent_context):
-        # Add some iterations to the context
-        mock_agent_context.iterations.append(
-            make_iteration(1, "check_installed", {"package": "pyvisa"}, success=False, stdout="pyvisa is NOT installed")
-        )
-        mock_agent_context.iterations.append(
-            make_iteration(2, "pip_install", {"packages": ["pyvisa"]}, success=True, stdout="Successfully installed")
-        )
-
-        llm = LLMClient.__new__(LLMClient)
-        llm.model = "test"
-
-        messages = llm._build_messages(mock_agent_context)
-        # 1 initial user message + 2 iterations * 2 messages each = 5
-        assert len(messages) == 5
-
-        # First is user message
-        assert messages[0]["role"] == "user"
-
-        # Second is assistant with tool_use
-        assert messages[1]["role"] == "assistant"
-        assert messages[1]["content"][0]["type"] == "tool_use"
-        assert messages[1]["content"][0]["name"] == "check_installed"
-
-        # Third is user with tool_result
-        assert messages[2]["role"] == "user"
-        assert messages[2]["content"][0]["type"] == "tool_result"
-
-    def test_empty_history(self, mock_agent_context):
-        llm = LLMClient.__new__(LLMClient)
-        llm.model = "test"
-
-        messages = llm._build_messages(mock_agent_context)
-        assert len(messages) == 1
-
-    def test_history_error_fields_included(self, mock_agent_context):
-        mock_agent_context.iterations.append(
-            make_iteration(1, "bash", {"command": "lsusb"}, success=False, stderr="permission denied", error="failed")
-        )
-        llm = LLMClient.__new__(LLMClient)
-        llm.model = "test"
-
-        messages = llm._build_messages(mock_agent_context)
-        tool_result_msg = messages[2]
-        content_text = tool_result_msg["content"][0]["content"]
-        assert "permission denied" in content_text
-        assert "failed" in content_text
-        assert tool_result_msg["content"][0]["is_error"] is True

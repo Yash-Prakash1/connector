@@ -59,11 +59,23 @@ def connect(
     ),
 ) -> None:
     """Connect to a lab instrument using an AI agent."""
-    # Check for API key
-    if not os.environ.get("ANTHROPIC_API_KEY"):
+    from hardware_agent.core.providers import detect_provider, get_provider_class
+
+    # Resolve model first so we know which provider (and API key) to check
+    resolved_model = _resolve_model(model)
+    provider_name = detect_provider(resolved_model)
+
+    try:
+        provider_class = get_provider_class(provider_name)
+    except ImportError as e:
+        console.print(f"[red]Error: {e}[/]")
+        raise typer.Exit(1)
+
+    has_key, key_name = provider_class.check_api_key()
+    if not has_key:
         console.print(
-            "[red]Error: ANTHROPIC_API_KEY environment variable not set.[/]\n"
-            "Set it with: export ANTHROPIC_API_KEY='sk-...'",
+            f"[red]Error: {key_name} environment variable not set.[/]\n"
+            f"Set it with: export {key_name}='your-key-here'",
         )
         raise typer.Exit(1)
 
@@ -109,8 +121,6 @@ def connect(
 
     info = device_module.get_info()
     console.print(f"[green]Using device: {info.name}[/]")
-
-    resolved_model = _resolve_model(model)
 
     # Run orchestrator
     orchestrator = Orchestrator(

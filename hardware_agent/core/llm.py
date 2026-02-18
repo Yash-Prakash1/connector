@@ -1,15 +1,12 @@
-"""LLM client — interfaces with Anthropic API using tool_use."""
+"""LLM client — provider-agnostic interface for tool_use agents."""
 
 from __future__ import annotations
 
-import json
 import os
-from dataclasses import asdict
 from typing import TYPE_CHECKING, Any, Optional
 
-import anthropic
-
 from hardware_agent.core.models import AgentContext, ToolCall
+from hardware_agent.core.providers import detect_provider, get_provider_class
 from hardware_agent.core.tools import TOOLS
 
 if TYPE_CHECKING:
@@ -25,11 +22,13 @@ def _load_prompt(name: str) -> str:
 
 
 class LLMClient:
-    """Interfaces with the Anthropic API for agent decisions."""
+    """Provider-agnostic LLM client for agent decisions."""
 
     def __init__(self, model: str = "claude-sonnet-4-20250514"):
         self.model = model
-        self.client = anthropic.Anthropic()
+        provider_name = detect_provider(model)
+        provider_class = get_provider_class(provider_name)
+        self.provider = provider_class(model)
 
     def get_next_action(
         self,
@@ -41,28 +40,14 @@ class LLMClient:
         system_prompt = self._build_system_prompt(
             context, community_knowledge, loop_breaker
         )
-        messages = self._build_messages(context)
-
-        response = self.client.messages.create(
-            model=self.model,
-            max_tokens=4096,
-            system=system_prompt,
-            tools=TOOLS,
-            messages=messages,
+        initial_message = (
+            f"Connect to the {context.device_name} and generate "
+            f"working Python code that communicates with it."
         )
+        history = context.format_history_for_llm()
 
-        # Extract tool_use block from response
-        for block in response.content:
-            if block.type == "tool_use":
-                return ToolCall(
-                    id=block.id,
-                    name=block.name,
-                    parameters=block.input,
-                )
-
-        raise ValueError(
-            "LLM response did not contain a tool_use block. "
-            "Response: " + str(response.content)
+        return self.provider.get_next_action(
+            system_prompt, initial_message, history, TOOLS
         )
 
     def _build_system_prompt(
@@ -153,19 +138,6 @@ class LLMClient:
             prompt += f"\n\n{loop_breaker}"
 
         return prompt
-
-    def _build_messages(self, context: AgentContext) -> list[dict]:
-        messages = [
-            {
-                "role": "user",
-                "content": (
-                    f"Connect to the {context.device_name} and generate "
-                    f"working Python code that communicates with it."
-                ),
-            },
-        ]
-        messages.extend(context.format_history_for_llm())
-        return messages
 
     def _format_community_knowledge(self, data: Any) -> str:
         if not data:
