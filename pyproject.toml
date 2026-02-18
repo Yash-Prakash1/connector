@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hardware-connector"
-version = "0.1.0"
+dynamic = ["version"]
 description = "AI-powered lab instrument connection assistant"
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.10"
@@ -53,6 +53,9 @@ hardware-connector = "hardware_agent.cli:app"
 
 [tool.setuptools.packages.find]
 include = ["hardware_agent*"]
+
+[tool.setuptools_scm]
+version_file = "hardware_agent/_version.py"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

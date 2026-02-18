@@ -23,6 +23,9 @@ env/
 .DS_Store
 Thumbs.db
 
+# Auto-generated version file
+hardware_agent/_version.py
+
 # Project-specific
 *.db
 .hardware-agent/
