@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sqlite3
@@ -359,5 +360,118 @@ class DataStore:
     # ── Analysis ─────────────────────────────────────────────────────
 
     def save_analysis(self, session_id: str, analysis: Any) -> None:
-        """Save analysis results. Currently a no-op placeholder for local storage."""
-        pass
+        """Save analysis results to local SQLite for learning.
+
+        Upserts resolution patterns into community_patterns and error
+        resolutions into community_errors so the replay engine can find them.
+        """
+        from hardware_agent.data.models import SessionAnalysis
+
+        if not isinstance(analysis, SessionAnalysis):
+            return
+
+        conn = self._get_conn()
+        now = datetime.now().isoformat()
+
+        # ── Save resolution pattern ──────────────────────────────────
+        if analysis.pattern is not None:
+            steps_dicts = [
+                {"action": s.action, **s.detail}
+                for s in analysis.pattern.steps
+            ]
+            steps_json = json.dumps(steps_dicts, sort_keys=True)
+            is_success = analysis.pattern.outcome == "success"
+
+            # Deterministic ID from device_type + os + steps
+            pattern_key = json.dumps({
+                "device_type": analysis.pattern.device_type,
+                "os": analysis.pattern.os,
+                "steps": steps_dicts,
+            }, sort_keys=True)
+            pattern_id = "local_" + hashlib.sha256(
+                pattern_key.encode()
+            ).hexdigest()[:16]
+
+            existing = conn.execute(
+                "SELECT success_count, confidence_score "
+                "FROM community_patterns WHERE id = ?",
+                (pattern_id,),
+            ).fetchone()
+
+            if existing:
+                old_success = existing["success_count"] or 0
+                # confidence_score stores total attempt count for local patterns
+                old_total = int(existing["confidence_score"] or 0)
+                new_total = old_total + 1
+                new_success = old_success + (1 if is_success else 0)
+                new_rate = new_success / new_total
+                conn.execute(
+                    """UPDATE community_patterns
+                       SET success_count = ?, success_rate = ?,
+                           confidence_score = ?, last_synced = ?
+                       WHERE id = ?""",
+                    (new_success, new_rate, new_total, now, pattern_id),
+                )
+            else:
+                conn.execute(
+                    """INSERT INTO community_patterns
+                       (id, device_type, os, initial_state_fingerprint, steps,
+                        success_count, success_rate, confidence_score, last_synced)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        pattern_id,
+                        analysis.pattern.device_type,
+                        analysis.pattern.os,
+                        analysis.pattern.initial_state_fingerprint,
+                        steps_json,
+                        1 if is_success else 0,
+                        1.0 if is_success else 0.0,
+                        1,  # total_count = 1
+                        now,
+                    ),
+                )
+            conn.commit()
+
+        # ── Save error resolutions ───────────────────────────────────
+        for er in analysis.error_resolutions:
+            er_key = f"{er.error_fingerprint}:{er.resolution_action}"
+            er_id = "local_" + hashlib.sha256(
+                er_key.encode()
+            ).hexdigest()[:16]
+
+            existing = conn.execute(
+                "SELECT success_count FROM community_errors WHERE id = ?",
+                (er_id,),
+            ).fetchone()
+
+            if existing:
+                new_count = (existing["success_count"] or 0) + 1
+                conn.execute(
+                    """UPDATE community_errors
+                       SET success_count = ?, success_rate = 1.0,
+                           last_synced = ?
+                       WHERE id = ?""",
+                    (new_count, now, er_id),
+                )
+            else:
+                conn.execute(
+                    """INSERT INTO community_errors
+                       (id, device_type, os, error_fingerprint, error_category,
+                        explanation, resolution_action, resolution_detail,
+                        success_count, success_rate, last_synced)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        er_id,
+                        er.device_type,
+                        er.os,
+                        er.error_fingerprint,
+                        er.error_category,
+                        er.explanation,
+                        er.resolution_action,
+                        json.dumps(er.resolution_detail),
+                        1,
+                        1.0,
+                        now,
+                    ),
+                )
+            conn.commit()

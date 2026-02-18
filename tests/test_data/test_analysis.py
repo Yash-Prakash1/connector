@@ -289,6 +289,63 @@ class TestAnalyzeSession:
         assert seq.next_error_fingerprint  # from second error
         assert seq.error_fingerprint != seq.next_error_fingerprint
 
+    def test_pattern_populated_when_context_provided(self):
+        """When device_type and os_name are given, pattern is set."""
+        iterations = [
+            make_iteration(1, "pip_install", {"packages": ["pyvisa"]}, True),
+            make_iteration(2, "check_device", {}, True),
+        ]
+        analysis = analyze_session(
+            iterations,
+            device_type="rigol_ds1054z",
+            os_name="linux",
+            fingerprint="fp_abc",
+            outcome="success",
+        )
+        assert analysis.pattern is not None
+        assert analysis.pattern.device_type == "rigol_ds1054z"
+        assert analysis.pattern.os == "linux"
+        assert analysis.pattern.outcome == "success"
+        assert analysis.pattern.initial_state_fingerprint == "fp_abc"
+        assert len(analysis.pattern.steps) == 2
+        assert analysis.pattern.steps[0].action == "pip_install"
+        assert analysis.pattern.steps[1].action == "verify"
+
+    def test_pattern_none_without_context(self):
+        """Without device_type/os_name, pattern remains None."""
+        iterations = [
+            make_iteration(1, "pip_install", {"packages": ["pyvisa"]}, True),
+        ]
+        analysis = analyze_session(iterations)
+        assert analysis.pattern is None
+
+    def test_pattern_none_when_no_normalizable_steps(self):
+        """Sessions with only terminal/diagnostic steps get no pattern."""
+        iterations = [
+            make_iteration(
+                1, "complete", {"code": "done"}, True, is_terminal=True
+            ),
+        ]
+        analysis = analyze_session(
+            iterations, device_type="rigol_ds1054z", os_name="linux"
+        )
+        assert analysis.pattern is None
+
+    def test_error_resolutions_get_device_context(self):
+        """Error resolutions inherit device_type/os when provided."""
+        iterations = [
+            make_iteration(
+                1, "check_device", {}, False, stderr="No backend available"
+            ),
+            make_iteration(2, "pip_install", {"packages": ["pyvisa-py"]}, True),
+        ]
+        analysis = analyze_session(
+            iterations, device_type="rigol_ds1054z", os_name="linux"
+        )
+        assert len(analysis.error_resolutions) == 1
+        assert analysis.error_resolutions[0].device_type == "rigol_ds1054z"
+        assert analysis.error_resolutions[0].os == "linux"
+
 
 # ── _categorize_error ─────────────────────────────────────────────────
 

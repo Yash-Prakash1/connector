@@ -13,6 +13,12 @@ from hardware_agent.core.models import (
     ToolCall,
     ToolResult,
 )
+from hardware_agent.data.models import (
+    ErrorResolution,
+    NormalizedStep,
+    ResolutionPattern,
+    SessionAnalysis,
+)
 from hardware_agent.data.store import DataStore
 
 
@@ -466,3 +472,211 @@ class TestUploadQueue:
         remaining = temp_db.get_pending_uploads()
         assert len(remaining) == 1
         assert remaining[0]["payload"]["data"] == "keep"
+
+
+# ── Save Analysis ────────────────────────────────────────────────────
+
+
+def _make_analysis(
+    outcome: str = "success",
+    device_type: str = "rigol_ds1054z",
+    os_name: str = "linux",
+    fingerprint: str = "fp_abc",
+    steps: list[NormalizedStep] | None = None,
+    error_resolutions: list[ErrorResolution] | None = None,
+) -> SessionAnalysis:
+    """Helper to build a SessionAnalysis for testing."""
+    if steps is None:
+        steps = [
+            NormalizedStep(action="pip_install", detail={"packages": ["pyvisa"]}),
+            NormalizedStep(action="verify", detail={"pattern": "device_check"}),
+        ]
+    return SessionAnalysis(
+        pattern=ResolutionPattern(
+            device_type=device_type,
+            os=os_name,
+            os_version=None,
+            initial_state_fingerprint=fingerprint,
+            steps=steps,
+            outcome=outcome,
+        ),
+        error_resolutions=error_resolutions or [],
+    )
+
+
+class TestSaveAnalysis:
+    """save_analysis — persist patterns and error resolutions."""
+
+    def test_successful_session_inserts_pattern(self, temp_db: DataStore):
+        analysis = _make_analysis(outcome="success")
+        temp_db.save_analysis("sess-1", analysis)
+
+        patterns = temp_db.get_cached_patterns("rigol_ds1054z", "linux")
+        assert len(patterns) == 1
+        assert patterns[0]["device_type"] == "rigol_ds1054z"
+        assert patterns[0]["os"] == "linux"
+        assert patterns[0]["success_count"] == 1
+        assert patterns[0]["success_rate"] == 1.0
+        assert isinstance(patterns[0]["steps"], list)
+        assert patterns[0]["steps"][0]["action"] == "pip_install"
+
+    def test_failed_session_inserts_pattern_with_zero_success(
+        self, temp_db: DataStore
+    ):
+        analysis = _make_analysis(outcome="failed")
+        temp_db.save_analysis("sess-1", analysis)
+
+        patterns = temp_db.get_cached_patterns("rigol_ds1054z", "linux")
+        assert len(patterns) == 1
+        assert patterns[0]["success_count"] == 0
+        assert patterns[0]["success_rate"] == 0.0
+
+    def test_duplicate_success_increments_count(self, temp_db: DataStore):
+        analysis = _make_analysis(outcome="success")
+        temp_db.save_analysis("sess-1", analysis)
+        temp_db.save_analysis("sess-2", analysis)
+
+        patterns = temp_db.get_cached_patterns("rigol_ds1054z", "linux")
+        assert len(patterns) == 1
+        assert patterns[0]["success_count"] == 2
+        assert patterns[0]["success_rate"] == 1.0
+
+    def test_success_then_failure_decreases_rate(self, temp_db: DataStore):
+        success = _make_analysis(outcome="success")
+        failure = _make_analysis(outcome="failed")
+        temp_db.save_analysis("sess-1", success)
+        temp_db.save_analysis("sess-2", failure)
+
+        patterns = temp_db.get_cached_patterns("rigol_ds1054z", "linux")
+        assert len(patterns) == 1
+        assert patterns[0]["success_count"] == 1
+        assert patterns[0]["success_rate"] == pytest.approx(0.5)
+
+    def test_multiple_successes_build_confidence(self, temp_db: DataStore):
+        analysis = _make_analysis(outcome="success")
+        for i in range(5):
+            temp_db.save_analysis(f"sess-{i}", analysis)
+
+        patterns = temp_db.get_cached_patterns("rigol_ds1054z", "linux")
+        assert patterns[0]["success_count"] == 5
+        assert patterns[0]["success_rate"] == 1.0
+
+    def test_error_resolution_inserted(self, temp_db: DataStore):
+        analysis = _make_analysis(
+            error_resolutions=[
+                ErrorResolution(
+                    device_type="rigol_ds1054z",
+                    os="linux",
+                    error_fingerprint="abc123",
+                    error_category="backend",
+                    explanation="No backend available",
+                    resolution_action="pip_install",
+                    resolution_detail={"packages": ["pyvisa-py"]},
+                ),
+            ],
+        )
+        temp_db.save_analysis("sess-1", analysis)
+
+        errors = temp_db.get_cached_errors("rigol_ds1054z", "linux")
+        assert len(errors) >= 1
+        match = [e for e in errors if e["error_fingerprint"] == "abc123"]
+        assert len(match) == 1
+        assert match[0]["error_category"] == "backend"
+        assert match[0]["resolution_action"] == "pip_install"
+        assert match[0]["success_count"] == 1
+
+    def test_error_resolution_increments_on_duplicate(self, temp_db: DataStore):
+        er = ErrorResolution(
+            device_type="rigol_ds1054z",
+            os="linux",
+            error_fingerprint="abc123",
+            error_category="backend",
+            explanation="No backend available",
+            resolution_action="pip_install",
+            resolution_detail={"packages": ["pyvisa-py"]},
+        )
+        analysis = _make_analysis(error_resolutions=[er])
+        temp_db.save_analysis("sess-1", analysis)
+        temp_db.save_analysis("sess-2", analysis)
+
+        errors = temp_db.get_cached_errors("rigol_ds1054z", "linux")
+        match = [e for e in errors if e["error_fingerprint"] == "abc123"]
+        assert match[0]["success_count"] == 2
+
+    def test_non_session_analysis_is_ignored(self, temp_db: DataStore):
+        """Passing a non-SessionAnalysis object is a no-op."""
+        temp_db.save_analysis("sess-1", {"not": "a SessionAnalysis"})
+        patterns = temp_db.get_cached_patterns("rigol_ds1054z", "linux")
+        assert patterns == []
+
+    def test_analysis_without_pattern_saves_only_errors(
+        self, temp_db: DataStore
+    ):
+        analysis = SessionAnalysis(
+            pattern=None,
+            error_resolutions=[
+                ErrorResolution(
+                    device_type="rigol_ds1054z",
+                    os="linux",
+                    error_fingerprint="xyz789",
+                    error_category="permissions",
+                    explanation="Permission denied",
+                    resolution_action="bash",
+                    resolution_detail={"command": "sudo chmod 666 /dev/usbtmc0"},
+                ),
+            ],
+        )
+        temp_db.save_analysis("sess-1", analysis)
+
+        patterns = temp_db.get_cached_patterns("rigol_ds1054z", "linux")
+        assert patterns == []
+        errors = temp_db.get_cached_errors("rigol_ds1054z", "linux")
+        assert len(errors) == 1
+
+    def test_end_to_end_save_then_replay_finds_pattern(
+        self, temp_db: DataStore
+    ):
+        """After enough successful saves, the replay engine finds the pattern."""
+        from hardware_agent.data.replay import ReplayEngine
+
+        analysis = _make_analysis(outcome="success")
+        # Save 5 successful sessions to meet CONFIDENCE_THRESHOLD
+        for i in range(5):
+            temp_db.save_analysis(f"sess-{i}", analysis)
+
+        engine = ReplayEngine()
+        candidate = engine.find_replay_candidate(
+            "rigol_ds1054z", "linux", "fp_abc", temp_db
+        )
+        assert candidate is not None
+        assert candidate["success_count"] == 5
+        assert candidate["success_rate"] == 1.0
+
+    def test_insufficient_successes_not_replayed(self, temp_db: DataStore):
+        """Below threshold, replay engine returns None."""
+        from hardware_agent.data.replay import ReplayEngine
+
+        analysis = _make_analysis(outcome="success")
+        for i in range(3):
+            temp_db.save_analysis(f"sess-{i}", analysis)
+
+        engine = ReplayEngine()
+        candidate = engine.find_replay_candidate(
+            "rigol_ds1054z", "linux", "fp_abc", temp_db
+        )
+        assert candidate is None
+
+    def test_different_steps_create_separate_patterns(
+        self, temp_db: DataStore
+    ):
+        analysis_a = _make_analysis(
+            steps=[NormalizedStep(action="pip_install", detail={"packages": ["pyvisa"]})]
+        )
+        analysis_b = _make_analysis(
+            steps=[NormalizedStep(action="system_install", detail={"target": "libusb"})]
+        )
+        temp_db.save_analysis("sess-1", analysis_a)
+        temp_db.save_analysis("sess-2", analysis_b)
+
+        patterns = temp_db.get_cached_patterns("rigol_ds1054z", "linux")
+        assert len(patterns) == 2

@@ -17,13 +17,47 @@ from hardware_agent.data.models import (
 )
 
 
-def analyze_session(iterations: list[Iteration]) -> SessionAnalysis:
+def analyze_session(
+    iterations: list[Iteration],
+    device_type: str = "",
+    os_name: str = "",
+    fingerprint: str = "",
+    outcome: str = "success",
+) -> SessionAnalysis:
     """Analyze a completed session and extract shareable patterns."""
     error_resolutions = _extract_error_resolutions(iterations)
     error_sequences = _extract_error_sequences(iterations)
     normalized_steps = normalize_iterations(iterations)
 
+    # Populate device_type/os on error resolutions and sequences
+    if device_type or os_name:
+        for er in error_resolutions:
+            er.device_type = er.device_type or device_type or None
+            er.os = er.os or os_name or None
+        for seq in error_sequences:
+            seq.device_type = seq.device_type or device_type or None
+            seq.os = seq.os or os_name or None
+
+    # Build resolution pattern if we have enough context
+    pattern = None
+    if normalized_steps and device_type and os_name:
+        pattern = ResolutionPattern(
+            device_type=device_type,
+            os=os_name,
+            os_version=None,
+            initial_state_fingerprint=fingerprint or None,
+            steps=[
+                NormalizedStep(
+                    action=s["action"],
+                    detail={k: v for k, v in s.items() if k != "action"},
+                )
+                for s in normalized_steps
+            ],
+            outcome=outcome,
+        )
+
     return SessionAnalysis(
+        pattern=pattern,
         error_resolutions=error_resolutions,
         error_sequences=error_sequences,
     )

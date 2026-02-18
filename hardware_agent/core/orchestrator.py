@@ -258,7 +258,13 @@ class Orchestrator:
 
         # 5. POST-SESSION ANALYSIS
         try:
-            analyzed = analyze_session(context.iterations)
+            analyzed = analyze_session(
+                context.iterations,
+                device_type=context.device_type,
+                os_name=context.environment.os.value,
+                fingerprint=fingerprint,
+                outcome="success" if result.success else "failed",
+            )
             # Store analysis results locally
             if analyzed:
                 self.store.save_analysis(session_id, analyzed)
