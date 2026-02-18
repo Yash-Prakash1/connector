@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68.0", "setuptools-scm>=8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hardware-agent"
+version = "0.1.0"
+description = "AI-powered lab instrument connection assistant"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Proprietary"}
+dependencies = [
+    "typer>=0.9.0",
+    "rich>=13.0.0",
+    "anthropic>=0.39.0",
+    "supabase>=2.0.0",
+    "pyvisa>=1.13.0",
+    "pyvisa-py>=0.7.0",
+    "pyusb>=1.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+]
+
+[project.scripts]
+hardware-agent = "hardware_agent.cli:app"
+
+[tool.setuptools.packages.find]
+include = ["hardware_agent*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+build/
+*.whl
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project-specific
+*.db
+.hardware-agent/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+hardware-agent-mvp-plan.md
+*.Zone.Identifier
+*:Zone.Identifier

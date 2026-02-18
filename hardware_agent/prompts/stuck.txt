@@ -1,0 +1,17 @@
+IMPORTANT: You are repeating the same action with the same error result. You MUST try a completely different approach.
+
+Do NOT retry the same command or the same strategy. Instead, consider:
+
+1. **Different diagnostic path**: If you've been checking VISA, try checking USB directly. If you've been checking USB, try a network scan.
+
+2. **Different installation method**: If pip install failed, try installing from source. If a system package failed, check if there's an alternative.
+
+3. **Different connection method**: If USB TMC isn't working, try VXI-11 (LAN). If LAN isn't working, try USB.
+
+4. **Lower-level investigation**: Run lsusb -v, check dmesg for USB errors, check if the kernel module is loaded.
+
+5. **System-level issues**: Check if libusb is installed at the system level (not just Python). Check if the user is in the right groups. Check if SELinux or AppArmor is blocking access.
+
+6. **Give up gracefully**: If you've tried 3+ genuinely different approaches, use the give_up tool with specific suggestions for the user to try manually (e.g., "try a different USB cable", "reboot the instrument", "try from a different computer").
+
+Remember: Repeating the same action expecting different results is the definition of insanity. Change your approach.
