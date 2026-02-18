@@ -1,20 +1,20 @@
-# Hardware Agent — Development Guide
+# Hardware Connector — Development Guide
 
 ## Project Overview
 
-CLI tool (`hardware-agent`) that helps engineers connect to lab instruments using an AI agent. Runs locally, diagnoses connection issues iteratively via LLM, outputs working Python code. Cross-user learning system shares anonymized patterns via Supabase.
+CLI tool (`hardware-connector`) that helps engineers connect to lab instruments using an AI agent. Runs locally, diagnoses connection issues iteratively via LLM, outputs working Python code. Cross-user learning system shares anonymized patterns via Supabase.
 
 ## Quick Commands
 
 ```bash
 pip install -e ".[dev]"          # Install in development mode
-pytest tests/ -v                 # Run all tests (302 tests)
+pytest tests/ -v                 # Run all tests
 pytest tests/ -q                 # Quick test summary
-hardware-agent version           # Print version
-hardware-agent detect            # Show environment info
-hardware-agent list-devices      # List supported devices
-hardware-agent connect -d rigol_ds1054z --yes  # Connect (needs API key + device)
-hardware-agent config get        # View config
+hardware-connector version           # Print version
+hardware-connector detect            # Show environment info
+hardware-connector list-devices      # List supported devices
+hardware-connector connect -d rigol_ds1054z --yes  # Connect (needs API key + device)
+hardware-connector config get        # View config
 ```
 
 ## Architecture
@@ -67,7 +67,7 @@ Session End   → Analyze iterations → Normalize to abstract steps → Push to
 - **SQLite database** lives at `~/.hardware-agent/data.db`
 - **Supabase anon key** is safe to embed (RLS protects data)
 - **Model resolution**: CLI `--model` flag → `HARDWARE_AGENT_MODEL` env → config DB → default `claude-sonnet-4-20250514`
-- **Telemetry**: defaults to on, disable with `hardware-agent config set telemetry off`
+- **Telemetry**: defaults to on, disable with `hardware-connector config set telemetry off`
 
 ## Testing
 

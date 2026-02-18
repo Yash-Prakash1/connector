@@ -3,12 +3,27 @@ requires = ["setuptools>=68.0", "setuptools-scm>=8.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hardware-agent"
+name = "hardware-connector"
 version = "0.1.0"
 description = "AI-powered lab instrument connection assistant"
-readme = "README.md"
+readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.10"
-license = {text = "Proprietary"}
+license = "LicenseRef-Proprietary"
+authors = [
+    {name = "Yash Prakash"},
+]
+keywords = ["hardware", "lab", "instruments", "visa", "scpi", "oscilloscope", "test-equipment"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+    "Topic :: System :: Hardware",
+]
 dependencies = [
     "typer>=0.9.0",
     "rich>=13.0.0",
@@ -25,8 +40,13 @@ dev = [
     "pytest-asyncio>=0.21.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/Yash-Prakash1/connector"
+Repository = "https://github.com/Yash-Prakash1/connector"
+Issues = "https://github.com/Yash-Prakash1/connector/issues"
+
 [project.scripts]
-hardware-agent = "hardware_agent.cli:app"
+hardware-connector = "hardware_agent.cli:app"
 
 [tool.setuptools.packages.find]
 include = ["hardware_agent*"]

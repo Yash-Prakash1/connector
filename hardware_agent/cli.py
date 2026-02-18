@@ -1,4 +1,4 @@
-"""CLI entry point for hardware-agent."""
+"""CLI entry point for hardware-connector."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from rich.table import Table
 import hardware_agent
 
 app = typer.Typer(
-    name="hardware-agent",
+    name="hardware-connector",
     help="AI-powered lab instrument connection assistant.",
     no_args_is_help=True,
 )
@@ -101,7 +101,7 @@ def connect(
                     console.print(f"  - {name}")
                 console.print(
                     "\nSpecify one with: "
-                    "[bold]hardware-agent connect --device <name>[/]"
+                    "[bold]hardware-connector connect --device <name>[/]"
                 )
             else:
                 console.print("[red]No device modules available.[/]")
@@ -237,7 +237,7 @@ def config(
                 console.print(f"{k} = {val or '(not set)'}")
     elif action == "set":
         if not key or value is None:
-            console.print("[red]Usage: hardware-agent config set <key> <value>[/]")
+            console.print("[red]Usage: hardware-connector config set <key> <value>[/]")
             raise typer.Exit(1)
         # Validate
         valid_keys = {"telemetry", "model"}
@@ -262,7 +262,7 @@ def config(
 @app.command()
 def version() -> None:
     """Print version."""
-    console.print(f"hardware-agent {hardware_agent.__version__}")
+    console.print(f"hardware-connector {hardware_agent.__version__}")
 
 
 if __name__ == "__main__":

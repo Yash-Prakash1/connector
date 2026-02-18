@@ -1,4 +1,4 @@
-# hardware-agent
+# hardware-connector
 
 AI-powered CLI tool that helps engineers connect to lab instruments. It uses an LLM agent to diagnose connection issues, install dependencies, fix permissions, and generate working Python code — all from your terminal.
 
@@ -25,7 +25,7 @@ More devices coming soon.
 ## Installation
 
 ```bash
-pip install git+https://github.com/Yash-Prakash1/connector.git
+pip install hardware-connector
 ```
 
 ## Setup
@@ -42,23 +42,23 @@ export ANTHROPIC_API_KEY='sk-ant-...'
 
 ```bash
 # Auto-detect connected device
-hardware-agent connect
+hardware-connector connect
 
 # Specify a device
-hardware-agent connect --device rigol_ds1054z
+hardware-connector connect --device rigol_ds1054z
 
 # Auto-confirm all actions (no prompts)
-hardware-agent connect --device rigol_ds1054z --yes
+hardware-connector connect --device rigol_ds1054z --yes
 ```
 
 ### Other commands
 
 ```bash
-hardware-agent list-devices     # Show supported devices
-hardware-agent detect           # Show environment info + detected devices
-hardware-agent config get       # View configuration
-hardware-agent config set model claude-sonnet-4-20250514  # Change LLM model
-hardware-agent version          # Print version
+hardware-connector list-devices     # Show supported devices
+hardware-connector detect           # Show environment info + detected devices
+hardware-connector config get       # View configuration
+hardware-connector config set model claude-sonnet-4-20250514  # Change LLM model
+hardware-connector version          # Print version
 ```
 
 ### Options
@@ -74,10 +74,10 @@ hardware-agent version          # Print version
 
 ```bash
 # Disable telemetry
-hardware-agent config set telemetry off
+hardware-connector config set telemetry off
 
 # Change default model
-hardware-agent config set model claude-sonnet-4-20250514
+hardware-connector config set model claude-sonnet-4-20250514
 ```
 
 Model resolution order: `--model` flag → `HARDWARE_AGENT_MODEL` env var → config DB → default.
