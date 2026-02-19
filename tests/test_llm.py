@@ -119,7 +119,7 @@ class TestGetNextAction:
         # Check that initial_message contains the device name (positional arg)
         call_args = mock_provider.get_next_action.call_args
         positional = call_args[0]
-        assert "Rigol DS1054Z" in positional[1]  # initial_message is 2nd arg
+        assert "Rigol DS1054Z" in positional[1]  # initial_message contains device name
 
 
 # ---------------------------------------------------------------------------
@@ -290,3 +290,122 @@ class TestBuildSystemPrompt:
         prompt = llm._build_system_prompt(mock_agent_context, None, None)
         assert "pyvisa" in prompt
         assert "pyusb" in prompt
+
+    @patch("hardware_agent.core.llm._load_prompt")
+    def test_wsl2_context_injected(self, mock_load_prompt, mock_agent_context):
+        mock_load_prompt.return_value = (
+            "{DEVICE_CONTEXT}{ENVIRONMENT}{COMMUNITY_KNOWLEDGE}{ITERATION}"
+        )
+        mock_agent_context.environment.is_wsl = True
+        llm = LLMClient.__new__(LLMClient)
+        llm.model = "test"
+
+        prompt = llm._build_system_prompt(mock_agent_context, None, None)
+        assert "WSL2" in prompt
+        assert "usbipd" in prompt
+
+    @patch("hardware_agent.core.llm._load_prompt")
+    def test_no_wsl2_context_when_not_wsl(self, mock_load_prompt, mock_agent_context):
+        mock_load_prompt.return_value = (
+            "{DEVICE_CONTEXT}{ENVIRONMENT}{COMMUNITY_KNOWLEDGE}{ITERATION}"
+        )
+        mock_agent_context.environment.is_wsl = False
+        llm = LLMClient.__new__(LLMClient)
+        llm.model = "test"
+
+        prompt = llm._build_system_prompt(mock_agent_context, None, None)
+        assert "usbipd" not in prompt
+
+
+# ---------------------------------------------------------------------------
+# Troubleshoot mode
+# ---------------------------------------------------------------------------
+
+class TestTroubleshootMode:
+    @patch("hardware_agent.core.llm._load_prompt")
+    def test_troubleshoot_mode_loads_correct_prompt(self, mock_load_prompt, mock_agent_context):
+        mock_load_prompt.return_value = (
+            "{DEVICE_CONTEXT}{ENVIRONMENT}{COMMUNITY_KNOWLEDGE}{ITERATION}"
+        )
+        mock_agent_context.mode = "troubleshoot"
+        llm = LLMClient.__new__(LLMClient)
+        llm.model = "test"
+
+        llm._build_system_prompt(mock_agent_context, None, None)
+        mock_load_prompt.assert_called_with("troubleshoot.txt")
+
+    @patch("hardware_agent.core.llm._load_prompt")
+    def test_connect_mode_loads_system_prompt(self, mock_load_prompt, mock_agent_context):
+        mock_load_prompt.return_value = (
+            "{DEVICE_CONTEXT}{ENVIRONMENT}{COMMUNITY_KNOWLEDGE}{ITERATION}"
+        )
+        mock_agent_context.mode = "connect"
+        llm = LLMClient.__new__(LLMClient)
+        llm.model = "test"
+
+        llm._build_system_prompt(mock_agent_context, None, None)
+        mock_load_prompt.assert_called_with("system.txt")
+
+    @patch("hardware_agent.core.llm._load_prompt")
+    def test_troubleshoot_initial_message(self, mock_load_prompt, mock_agent_context):
+        mock_load_prompt.return_value = (
+            "{DEVICE_CONTEXT}{ENVIRONMENT}{COMMUNITY_KNOWLEDGE}{ITERATION}"
+        )
+        mock_agent_context.mode = "troubleshoot"
+
+        mock_provider = MagicMock()
+        mock_provider.get_next_action.return_value = ToolCall(
+            id="toolu_001", name="ask_user", parameters={"question": "What's wrong?"}
+        )
+
+        llm = LLMClient.__new__(LLMClient)
+        llm.model = "test"
+        llm.provider = mock_provider
+
+        llm.get_next_action(mock_agent_context)
+
+        call_args = mock_provider.get_next_action.call_args[0]
+        initial_message = call_args[1]
+        assert "troubleshooting" in initial_message
+        assert mock_agent_context.device_name in initial_message
+
+    @patch("hardware_agent.core.llm._load_prompt")
+    def test_troubleshoot_uses_troubleshoot_tools(self, mock_load_prompt, mock_agent_context):
+        mock_load_prompt.return_value = (
+            "{DEVICE_CONTEXT}{ENVIRONMENT}{COMMUNITY_KNOWLEDGE}{ITERATION}"
+        )
+        mock_agent_context.mode = "troubleshoot"
+
+        mock_provider = MagicMock()
+        mock_provider.get_next_action.return_value = ToolCall(
+            id="toolu_001", name="ask_user", parameters={"question": "What's wrong?"}
+        )
+
+        llm = LLMClient.__new__(LLMClient)
+        llm.model = "test"
+        llm.provider = mock_provider
+
+        llm.get_next_action(mock_agent_context)
+
+        call_args = mock_provider.get_next_action.call_args[0]
+        tools = call_args[3]
+        tool_names = [t["name"] for t in tools]
+        assert "web_search" in tool_names
+        assert "web_fetch" in tool_names
+        assert "run_user_script" in tool_names
+        # Should also have all standard tools
+        assert "bash" in tool_names
+        assert "complete" in tool_names
+
+    @patch("hardware_agent.core.llm._load_prompt")
+    def test_unknown_device_context(self, mock_load_prompt, mock_agent_context):
+        mock_load_prompt.return_value = (
+            "{DEVICE_CONTEXT}{ENVIRONMENT}{COMMUNITY_KNOWLEDGE}{ITERATION}"
+        )
+        mock_agent_context.device_type = "unknown"
+        mock_agent_context.mode = "troubleshoot"
+        llm = LLMClient.__new__(LLMClient)
+        llm.model = "test"
+
+        prompt = llm._build_system_prompt(mock_agent_context, None, None)
+        assert "No specific device selected" in prompt

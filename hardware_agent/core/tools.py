@@ -2,6 +2,71 @@
 
 from __future__ import annotations
 
+_WEB_SEARCH_TOOL: dict = {
+    "name": "web_search",
+    "description": (
+        "Search the web for solutions to errors, driver issues, or "
+        "device-specific troubleshooting information."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": "Search query (e.g. 'pyvisa no backend available linux')",
+            },
+            "max_results": {
+                "type": "integer",
+                "description": "Maximum number of results to return (default: 5)",
+                "default": 5,
+            },
+        },
+        "required": ["query"],
+    },
+}
+
+_WEB_FETCH_TOOL: dict = {
+    "name": "web_fetch",
+    "description": (
+        "Fetch and extract text content from a URL. Use to read documentation "
+        "pages, forum posts, or other web resources found via web_search."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "url": {
+                "type": "string",
+                "description": "URL to fetch",
+            },
+        },
+        "required": ["url"],
+    },
+}
+
+_RUN_USER_SCRIPT_TOOL: dict = {
+    "name": "run_user_script",
+    "description": (
+        "Run an existing Python script file from the user's filesystem. "
+        "Always requires user confirmation before execution. Use to reproduce "
+        "errors the user is experiencing."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "path": {
+                "type": "string",
+                "description": "Absolute path to the Python script file",
+            },
+            "timeout": {
+                "type": "integer",
+                "description": "Timeout in seconds (default: 30, max: 120)",
+                "default": 30,
+            },
+        },
+        "required": ["path"],
+    },
+}
+
 TOOLS: list[dict] = [
     {
         "name": "bash",
@@ -140,6 +205,30 @@ TOOLS: list[dict] = [
         },
     },
     {
+        "name": "ask_user",
+        "description": (
+            "Ask the user a question. Use this when you need information you "
+            "cannot determine programmatically — connection type, physical "
+            "device state, operating environment, or confirmation that a "
+            "physical action has been performed."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "question": {
+                    "type": "string",
+                    "description": "The question to ask the user",
+                },
+                "choices": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional multiple-choice options",
+                },
+            },
+            "required": ["question"],
+        },
+    },
+    {
         "name": "run_python",
         "description": (
             "Execute Python code in the current environment. "
@@ -179,6 +268,10 @@ TOOLS: list[dict] = [
                     "type": "string",
                     "description": "Brief summary of what was done to establish the connection",
                 },
+                "file_path": {
+                    "type": "string",
+                    "description": "Absolute path where the user wants the code saved",
+                },
             },
             "required": ["code"],
         },
@@ -205,4 +298,10 @@ TOOLS: list[dict] = [
             "required": ["reason"],
         },
     },
+]
+
+TROUBLESHOOT_TOOLS: list[dict] = TOOLS + [
+    _WEB_SEARCH_TOOL,
+    _WEB_FETCH_TOOL,
+    _RUN_USER_SCRIPT_TOOL,
 ]

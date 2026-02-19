@@ -28,6 +28,7 @@ class EnvironmentDetector:
         installed_packages = _detect_installed_packages(pip_path)
         usb_devices = _detect_usb_devices(detected_os)
         visa_resources = _detect_visa_resources()
+        is_wsl = _detect_wsl() if detected_os == OS.LINUX else False
 
         return Environment(
             os=detected_os,
@@ -41,6 +42,7 @@ class EnvironmentDetector:
             installed_packages=installed_packages,
             usb_devices=usb_devices,
             visa_resources=visa_resources,
+            is_wsl=is_wsl,
         )
 
     @staticmethod
@@ -214,6 +216,24 @@ def _detect_usb_devices(detected_os: OS) -> list[str]:
     except Exception:
         pass
     return []
+
+
+def _detect_wsl() -> bool:
+    """Detect if running inside WSL (Windows Subsystem for Linux)."""
+    try:
+        release = platform.uname().release.lower()
+        if "microsoft" in release or "wsl" in release:
+            return True
+    except Exception:
+        pass
+    try:
+        with open("/proc/version", "r") as f:
+            content = f.read().lower()
+            if "microsoft" in content:
+                return True
+    except Exception:
+        pass
+    return False
 
 
 def _detect_visa_resources() -> list[str]:

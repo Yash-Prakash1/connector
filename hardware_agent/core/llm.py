@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from hardware_agent.core.models import AgentContext, ToolCall
 from hardware_agent.core.providers import detect_provider, get_provider_class
-from hardware_agent.core.tools import TOOLS
+from hardware_agent.core.tools import TOOLS, TROUBLESHOOT_TOOLS
 
 if TYPE_CHECKING:
     from hardware_agent.data.community import CommunityKnowledge
@@ -40,14 +40,26 @@ class LLMClient:
         system_prompt = self._build_system_prompt(
             context, community_knowledge, loop_breaker
         )
-        initial_message = (
-            f"Connect to the {context.device_name} and generate "
-            f"working Python code that communicates with it."
-        )
+
+        if context.mode == "troubleshoot":
+            initial_message = (
+                f"The user needs help troubleshooting an issue with their "
+                f"{context.device_name} setup. Start by asking what problem "
+                f"they're experiencing."
+            )
+            tools = TROUBLESHOOT_TOOLS
+        else:
+            initial_message = (
+                f"Connect to the {context.device_name}. Once you have a working "
+                f"connection, ask the user what they want to accomplish with "
+                f"the device, then generate Python code tailored to their goal."
+            )
+            tools = TOOLS
+
         history = context.format_history_for_llm()
 
         return self.provider.get_next_action(
-            system_prompt, initial_message, history, TOOLS
+            system_prompt, initial_message, history, tools
         )
 
     def _build_system_prompt(
@@ -56,12 +68,21 @@ class LLMClient:
         community_knowledge: Optional[Any],
         loop_breaker: Optional[str],
     ) -> str:
-        base = _load_prompt("system.txt")
+        if context.mode == "troubleshoot":
+            base = _load_prompt("troubleshoot.txt")
+        else:
+            base = _load_prompt("system.txt")
 
         # Device context
-        device_context = (
-            f"Device: {context.device_name} ({context.device_type})\n"
-        )
+        if context.device_type == "unknown":
+            device_context = (
+                "No specific device selected. The user will describe "
+                "their setup interactively.\n"
+            )
+        else:
+            device_context = (
+                f"Device: {context.device_name} ({context.device_type})\n"
+            )
         hints = context.device_hints
         if hints.get("common_errors"):
             device_context += "\nKnown error solutions:\n"
@@ -109,11 +130,32 @@ class LLMClient:
         else:
             env_context += "No relevant packages installed yet.\n"
 
+        if env.is_wsl:
+            env_context += "WSL2: yes (Windows Subsystem for Linux)\n"
+
         if env.usb_devices:
             env_context += f"USB devices detected: {len(env.usb_devices)}\n"
         if env.visa_resources:
             env_context += (
                 f"VISA resources: {', '.join(env.visa_resources)}\n"
+            )
+
+        # WSL2-specific guidance
+        wsl_context = ""
+        if env.is_wsl:
+            wsl_context = (
+                "\n## WSL2 USB Passthrough\n"
+                "USB devices are NOT automatically available inside WSL2. "
+                "The user must attach them from Windows using usbipd-win.\n"
+                "If the device is not visible in lsusb, use ONE ask_user call "
+                "to give the user all steps at once:\n"
+                "  1. Open PowerShell as Administrator on Windows\n"
+                "  2. Run: usbipd list — find the device BUSID\n"
+                "  3. Run: usbipd bind --busid <BUSID>\n"
+                "  4. Run: usbipd attach --wsl --busid <BUSID>\n"
+                "Offer choices like [\"Done\", \"I got an error\", \"usbipd not installed\"].\n"
+                "After user confirms, verify with lsusb yourself — NEVER ask "
+                "the user to paste command output.\n"
             )
 
         # Community knowledge
@@ -130,7 +172,7 @@ class LLMClient:
 
         # Build full prompt
         prompt = base.replace("{DEVICE_CONTEXT}", device_context)
-        prompt = prompt.replace("{ENVIRONMENT}", env_context)
+        prompt = prompt.replace("{ENVIRONMENT}", env_context + wsl_context)
         prompt = prompt.replace("{COMMUNITY_KNOWLEDGE}", community_context)
         prompt = prompt.replace("{ITERATION}", iteration_context)
 

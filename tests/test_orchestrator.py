@@ -503,3 +503,183 @@ class TestOrchestratorLoopDetection:
             assert third_call_kwargs[0][2] is not None  # loop_breaker set
         elif "loop_breaker" in third_call_kwargs[1]:
             assert third_call_kwargs[1]["loop_breaker"] is not None
+
+
+# ---------------------------------------------------------------------------
+# Troubleshoot mode
+# ---------------------------------------------------------------------------
+
+class TestOrchestratorTroubleshootMode:
+    @patch("hardware_agent.core.orchestrator.analyze_session", return_value=None)
+    @patch("hardware_agent.core.orchestrator.fingerprint_initial_state", return_value="fp123")
+    @patch("hardware_agent.core.orchestrator.ReplayEngine")
+    @patch("hardware_agent.core.orchestrator.CommunityKnowledge")
+    @patch("hardware_agent.core.orchestrator.DataStore")
+    @patch("hardware_agent.core.orchestrator.ToolExecutor")
+    @patch("hardware_agent.core.orchestrator.LLMClient")
+    def test_troubleshoot_mode_skips_replay(
+        self,
+        MockLLMClient,
+        MockToolExecutor,
+        MockDataStore,
+        MockCommunity,
+        MockReplay,
+        mock_fingerprint,
+        mock_analyze,
+    ):
+        env = _make_environment()
+        dm = _make_device_module()
+
+        mock_llm = MockLLMClient.return_value
+        mock_llm.get_next_action.side_effect = [
+            _make_tool_call("complete", {"code": "fixed"}),
+        ]
+
+        mock_executor = MockToolExecutor.return_value
+        mock_executor.execute.side_effect = [
+            _make_tool_result(success=True, stdout="fixed", is_terminal=True),
+        ]
+
+        mock_store = MockDataStore.return_value
+        mock_store.create_session.return_value = None
+        mock_store.log_iteration.return_value = None
+        mock_store.complete_session.return_value = None
+        mock_store.save_analysis.return_value = None
+
+        mock_community = MockCommunity.return_value
+        mock_community.is_enabled.return_value = False
+        mock_community.flush_queue.return_value = None
+
+        mock_replay = MockReplay.return_value
+        # Even if a candidate exists, it should NOT be used
+        mock_replay.find_replay_candidate.return_value = {
+            "success_count": 5, "steps": []
+        }
+
+        orch = Orchestrator(
+            environment=env,
+            device_module=dm,
+            auto_confirm=True,
+            max_iterations=20,
+            mode="troubleshoot",
+        )
+        result = orch.run()
+
+        assert result.success is True
+        # find_replay_candidate should not have been called
+        mock_replay.find_replay_candidate.assert_not_called()
+
+    @patch("hardware_agent.core.orchestrator.analyze_session", return_value=None)
+    @patch("hardware_agent.core.orchestrator.fingerprint_initial_state", return_value="fp123")
+    @patch("hardware_agent.core.orchestrator.ReplayEngine")
+    @patch("hardware_agent.core.orchestrator.CommunityKnowledge")
+    @patch("hardware_agent.core.orchestrator.DataStore")
+    @patch("hardware_agent.core.orchestrator.ToolExecutor")
+    @patch("hardware_agent.core.orchestrator.LLMClient")
+    def test_troubleshoot_mode_with_null_device(
+        self,
+        MockLLMClient,
+        MockToolExecutor,
+        MockDataStore,
+        MockCommunity,
+        MockReplay,
+        mock_fingerprint,
+        mock_analyze,
+    ):
+        from hardware_agent.devices.null_device import NullDeviceModule
+
+        env = _make_environment()
+        dm = NullDeviceModule()
+
+        mock_llm = MockLLMClient.return_value
+        mock_llm.get_next_action.side_effect = [
+            _make_tool_call("complete", {"code": "# solution", "summary": "Fixed it"}),
+        ]
+
+        mock_executor = MockToolExecutor.return_value
+        mock_executor.execute.side_effect = [
+            _make_tool_result(success=True, stdout="# solution", is_terminal=True),
+        ]
+
+        mock_store = MockDataStore.return_value
+        mock_store.create_session.return_value = None
+        mock_store.log_iteration.return_value = None
+        mock_store.complete_session.return_value = None
+        mock_store.save_analysis.return_value = None
+
+        mock_community = MockCommunity.return_value
+        mock_community.is_enabled.return_value = False
+        mock_community.flush_queue.return_value = None
+
+        mock_replay = MockReplay.return_value
+
+        orch = Orchestrator(
+            environment=env,
+            device_module=dm,
+            auto_confirm=True,
+            max_iterations=20,
+            mode="troubleshoot",
+        )
+        result = orch.run()
+
+        assert result.success is True
+        assert result.final_code == "# solution"
+
+    @patch("hardware_agent.core.orchestrator.analyze_session", return_value=None)
+    @patch("hardware_agent.core.orchestrator.fingerprint_initial_state", return_value="fp123")
+    @patch("hardware_agent.core.orchestrator.ReplayEngine")
+    @patch("hardware_agent.core.orchestrator.CommunityKnowledge")
+    @patch("hardware_agent.core.orchestrator.DataStore")
+    @patch("hardware_agent.core.orchestrator.ToolExecutor")
+    @patch("hardware_agent.core.orchestrator.LLMClient")
+    def test_troubleshoot_uses_troubleshoot_tools(
+        self,
+        MockLLMClient,
+        MockToolExecutor,
+        MockDataStore,
+        MockCommunity,
+        MockReplay,
+        mock_fingerprint,
+        mock_analyze,
+    ):
+        env = _make_environment()
+        dm = _make_device_module()
+
+        mock_llm = MockLLMClient.return_value
+        mock_llm.get_next_action.side_effect = [
+            _make_tool_call("web_search", {"query": "pyvisa error"}),
+            _make_tool_call("complete", {"code": "# fix"}),
+        ]
+
+        mock_executor = MockToolExecutor.return_value
+        mock_executor.execute.side_effect = [
+            _make_tool_result(success=True, stdout="1. Fix found"),
+            _make_tool_result(success=True, stdout="# fix", is_terminal=True),
+        ]
+
+        mock_store = MockDataStore.return_value
+        mock_store.create_session.return_value = None
+        mock_store.log_iteration.return_value = None
+        mock_store.complete_session.return_value = None
+        mock_store.save_analysis.return_value = None
+
+        mock_community = MockCommunity.return_value
+        mock_community.is_enabled.return_value = False
+        mock_community.flush_queue.return_value = None
+
+        mock_replay = MockReplay.return_value
+
+        orch = Orchestrator(
+            environment=env,
+            device_module=dm,
+            auto_confirm=True,
+            max_iterations=20,
+            mode="troubleshoot",
+        )
+        result = orch.run()
+
+        assert result.success is True
+        # The LLM context should have mode="troubleshoot"
+        llm_calls = mock_llm.get_next_action.call_args_list
+        first_call_context = llm_calls[0][0][0]
+        assert first_call_context.mode == "troubleshoot"

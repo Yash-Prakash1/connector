@@ -1,8 +1,8 @@
-# Hardware Agent — Progress Tracker
+# Hardware Connector — Progress Tracker
 
 ## Phase 1: End-to-End Skeleton with DS1054Z — COMPLETE
 
-**Status: Done** | 302 tests passing | All CLI commands working
+**Status: Done** | All CLI commands working
 
 ### Source Files (26 Python files + 2 prompt files)
 
@@ -11,7 +11,7 @@
 | `hardware_agent/__init__.py` | Done | Version 0.1.0 |
 | `hardware_agent/cli.py` | Done | 5 commands: connect, list-devices, detect, config, version |
 | `hardware_agent/core/models.py` | Done | OS, Environment, ToolCall, ToolResult, Iteration, AgentContext, SessionResult |
-| `hardware_agent/core/environment.py` | Done | EnvironmentDetector with OS/Python/USB/VISA detection |
+| `hardware_agent/core/environment.py` | Done | EnvironmentDetector with OS/Python/USB/VISA/WSL detection |
 | `hardware_agent/core/tools.py` | Done | 11 Anthropic tool_use schema definitions |
 | `hardware_agent/core/executor.py` | Done | ToolExecutor with safety checks, confirmation flow |
 | `hardware_agent/core/llm.py` | Done | LLMClient wrapping Anthropic API with prompt building |
@@ -34,7 +34,43 @@
 | `hardware_agent/prompts/stuck.txt` | Done | Loop breaker prompt |
 | `pyproject.toml` | Done | Package config with entry point + deps |
 
-### Test Files (14 test files, 302 tests)
+---
+
+## Phase 1.5: Troubleshoot Command — COMPLETE
+
+**Status: Done** | 387 tests passing | `hardware-connector troubleshoot` working
+
+Promise: **Diagnoses why a lab instrument setup is not behaving as expected and tells you what to check next.**
+
+### New/Modified Source Files
+
+| File | Status | Description |
+|------|--------|-------------|
+| `hardware_agent/cli.py` | Updated | Added `troubleshoot` command (6 commands total) |
+| `hardware_agent/core/models.py` | Updated | Added `mode` field to `AgentContext` |
+| `hardware_agent/core/tools.py` | Updated | Added 3 tool definitions + `TROUBLESHOOT_TOOLS` list (14 tools total) |
+| `hardware_agent/core/executor.py` | Updated | Added `web_search`, `web_fetch`, `run_user_script` handlers + HTML-to-text extractor |
+| `hardware_agent/core/llm.py` | Updated | Mode-aware prompt loading and initial message |
+| `hardware_agent/core/orchestrator.py` | Updated | Mode support, skip replay in troubleshoot, new tool display |
+| `hardware_agent/core/environment.py` | Updated | Added WSL2 detection |
+| `hardware_agent/data/analysis.py` | Updated | Excluded new tools from replay normalization |
+| `hardware_agent/devices/null_device.py` | **New** | NullDeviceModule for troubleshoot without device |
+| `hardware_agent/devices/rigol_common.py` | Updated | Added MTP/USBTMC mode switch quirk |
+| `hardware_agent/prompts/troubleshoot.txt` | **New** | Troubleshoot prompt: observe → diagnose → search → suggest → fix → verify |
+| `hardware_agent/prompts/system.txt` | Updated | Improved rules: ask user's goal, validate before completing, WSL2/MTP patterns |
+| `pyproject.toml` | Updated | Added `duckduckgo-search` dependency |
+
+### Troubleshoot Agent Flow
+
+1. **Listen** — ask the user what's going wrong
+2. **Observe** — if connected, query the device to understand its actual state (settings, data, error registers)
+3. **Diagnose** — analyze device data to form a specific diagnosis (not just parroting the user's words)
+4. **Search** — web search + community DB with the real diagnosis
+5. **Suggest** — present options to the user, ask before applying
+6. **Fix** — apply the chosen fix via SCPI / code / config change
+7. **Verify** — re-query device to confirm the fix worked
+
+### Test Files (14 test files, 387 tests)
 
 | File | Tests | Status |
 |------|-------|--------|
@@ -42,24 +78,24 @@
 | `tests/test_devices/test_visa_device.py` | 27 | Pass |
 | `tests/test_devices/test_rigol_ds1054z.py` | 25 | Pass |
 | `tests/test_devices/test_registry.py` | 15 | Pass |
-| `tests/test_environment.py` | 22 | Pass |
-| `tests/test_executor.py` | 27 | Pass |
+| `tests/test_environment.py` | 71 | Pass |
+| `tests/test_executor.py` | 58 | Pass |
+| `tests/test_llm.py` | 18 | Pass |
+| `tests/test_orchestrator.py` | 9 | Pass |
 | `tests/test_loop_detector.py` | 14 | Pass |
-| `tests/test_llm.py` | 13 | Pass |
-| `tests/test_orchestrator.py` | 6 | Pass |
 | `tests/test_data/test_store.py` | 30 | Pass |
 | `tests/test_data/test_community.py` | 17 | Pass |
 | `tests/test_data/test_analysis.py` | 35 | Pass |
 | `tests/test_data/test_fingerprint.py` | 9 | Pass |
 | `tests/test_data/test_replay.py` | 16 | Pass |
 
-### Currently Failing: **None** (302/302 pass)
+### Currently Failing: **None** (387/387 pass)
 
 ---
 
 ## Known Gaps / Not Yet Implemented
 
-### In Phase 1 (minor gaps)
+### Minor gaps
 
 | Item | Priority | Notes |
 |------|----------|-------|
@@ -68,7 +104,6 @@
 | `hints.yaml` not created | Low | Hints are in Python code directly — works fine, YAML was optional |
 | No `.gitignore` | Low | Should add to exclude __pycache__, .db files, etc. |
 | No `README.md` | Low | Plan puts this in Phase 4 |
-| No git commits | Low | Project is unversioned |
 
 ### Phase 2: Remaining Rigol Devices — NOT STARTED
 
@@ -103,6 +138,6 @@ Each is ~60-80 lines + test file. Architecture supports this — just set class 
 
 | Category | Files | Lines |
 |----------|-------|-------|
-| Source (hardware_agent/) | 26 | ~3,200 |
-| Tests (tests/) | 14 | ~4,700 |
-| **Total** | **40** | **~7,900** |
+| Source (hardware_agent/) | 29 | ~4,700 |
+| Tests (tests/) | 14 | ~6,000 |
+| **Total** | **43** | **~10,700** |

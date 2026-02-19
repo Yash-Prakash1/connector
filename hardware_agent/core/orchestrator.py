@@ -41,12 +41,14 @@ class Orchestrator:
         console: Optional[Console] = None,
         max_iterations: int = 20,
         model: str = "claude-sonnet-4-20250514",
+        mode: str = "connect",
     ):
         self.environment = environment
         self.device_module = device_module
         self.auto_confirm = auto_confirm
         self.console = console or Console()
         self.max_iterations = max_iterations
+        self.mode = mode
 
         self.confirm_callback: Callable[[str], bool]
         if auto_confirm:
@@ -56,7 +58,10 @@ class Orchestrator:
 
         self.llm = LLMClient(model=model)
         self.executor = ToolExecutor(
-            environment, device_module, self.confirm_callback
+            environment,
+            device_module,
+            self.confirm_callback,
+            ask_user_callback=self._interactive_ask_user,
         )
         self.loop_detector = LoopDetector()
         self.store = DataStore()
@@ -92,6 +97,7 @@ class Orchestrator:
             device_hints=hints_dict,
             environment=self.environment,
             max_iterations=self.max_iterations,
+            mode=self.mode,
         )
 
         self.store.create_session(
@@ -105,6 +111,10 @@ class Orchestrator:
             fingerprint=fingerprint,
         )
 
+        if self.mode == "troubleshoot":
+            panel_title = "Troubleshoot Session"
+        else:
+            panel_title = "Hardware Agent Session"
         self.console.print(
             Panel(
                 f"[bold]Device:[/] {device_info.name}\n"
@@ -112,7 +122,7 @@ class Orchestrator:
                 f"[bold]OS:[/] {self.environment.os.value} "
                 f"({self.environment.os_version})\n"
                 f"[bold]Python:[/] {self.environment.python_version}",
-                title="Hardware Agent Session",
+                title=panel_title,
                 border_style="blue",
             )
         )
@@ -125,13 +135,15 @@ class Orchestrator:
                 device_info.identifier, self.environment.os.value
             )
 
-        # 3. TRY REPLAY
-        candidate = self.replay_engine.find_replay_candidate(
-            device_info.identifier,
-            self.environment.os.value,
-            fingerprint,
-            self.store,
-        )
+        # 3. TRY REPLAY (skip in troubleshoot mode — always interactive)
+        candidate = None
+        if self.mode != "troubleshoot":
+            candidate = self.replay_engine.find_replay_candidate(
+                device_info.identifier,
+                self.environment.os.value,
+                fingerprint,
+                self.store,
+            )
         if candidate:
             count = candidate.get("success_count", 0)
             self.console.print(
@@ -226,6 +238,7 @@ class Orchestrator:
                         iterations=context.get_current_iteration(),
                         duration_seconds=duration,
                         final_code=tool_call.parameters.get("code", ""),
+                        output_file=tool_call.parameters.get("file_path"),
                     )
                 else:
                     result = SessionResult(
@@ -330,12 +343,28 @@ class Orchestrator:
                 code = code[:200] + "..."
             self.console.print("[bold cyan]Running Python code:[/]")
             self.console.print(Syntax(code, "python", theme="monokai"))
+        elif name == "ask_user":
+            self.console.print(
+                f"[bold yellow]Agent asks:[/] {params.get('question', '')}"
+            )
         elif name == "check_device":
             self.console.print("[bold cyan]Checking device connection...[/]")
         elif name == "complete":
             self.console.print("[bold green]Connection successful![/]")
         elif name == "give_up":
             self.console.print("[bold red]Agent giving up.[/]")
+        elif name == "web_search":
+            self.console.print(
+                f"[bold cyan]Searching: {params.get('query', '')}[/]"
+            )
+        elif name == "web_fetch":
+            self.console.print(
+                f"[bold cyan]Reading: {params.get('url', '')}[/]"
+            )
+        elif name == "run_user_script":
+            self.console.print(
+                f"[bold cyan]Running user script: {params.get('path', '')}[/]"
+            )
         else:
             self.console.print(f"[bold cyan]{name}[/] {params}")
 
@@ -357,10 +386,14 @@ class Orchestrator:
     def _display_final_result(self, result: SessionResult) -> None:
         """Display the final session result."""
         self.console.print()
+        if self.mode == "troubleshoot":
+            success_msg = "Issue resolved!"
+        else:
+            success_msg = "Connection established!"
         if result.success:
             self.console.print(
                 Panel(
-                    f"[bold green]Connection established![/]\n"
+                    f"[bold green]{success_msg}[/]\n"
                     f"Iterations: {result.iterations}\n"
                     f"Duration: {result.duration_seconds:.1f}s",
                     title="Session Complete",
@@ -383,6 +416,46 @@ class Orchestrator:
                     border_style="red",
                 )
             )
+
+    def _interactive_ask_user(
+        self, question: str, choices: list[str] | None = None
+    ) -> str:
+        """Prompt the user with a question, optionally with numbered choices."""
+        from rich.prompt import Prompt
+
+        self.console.print()
+        if choices:
+            self.console.print(f"[bold yellow]{question}[/]")
+            for i, choice in enumerate(choices, 1):
+                self.console.print(f"  [cyan]{i}.[/] {choice}")
+            answer = Prompt.ask(
+                "Enter your choice (number or text)",
+                console=self.console,
+            )
+            # If user entered a number, map to the choice
+            try:
+                idx = int(answer)
+                if 1 <= idx <= len(choices):
+                    return choices[idx - 1]
+            except ValueError:
+                pass
+            return answer
+        else:
+            self.console.print(f"[bold yellow]{question}[/]")
+            self.console.print(
+                "[dim](Enter your response. For multi-line input, "
+                "type each line then press Enter on an empty line to finish)[/]"
+            )
+            lines: list[str] = []
+            while True:
+                try:
+                    line = input("> " if not lines else "  ")
+                except EOFError:
+                    break
+                if line == "" and lines:
+                    break
+                lines.append(line)
+            return "\n".join(lines)
 
     def _interactive_confirm(self, message: str) -> bool:
         """Prompt user for confirmation."""

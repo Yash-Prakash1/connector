@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 import subprocess
-from unittest.mock import MagicMock, patch
+import urllib.request
+from pathlib import Path
+from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
 from hardware_agent.core.executor import (
+    AskUserCallback,
     BLOCKED_COMMANDS,
     REQUIRES_CONFIRMATION,
     ToolExecutor,
+    _html_to_text,
 )
 from hardware_agent.core.models import ToolCall, ToolResult
 
@@ -19,13 +23,14 @@ from hardware_agent.core.models import ToolCall, ToolResult
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_executor(mock_environment, device_module=None, confirm=None):
+def _make_executor(mock_environment, device_module=None, confirm=None, ask_user=None):
     """Create a ToolExecutor with sensible defaults for testing."""
     dm = device_module or MagicMock()
     return ToolExecutor(
         environment=mock_environment,
         device_module=dm,
         confirm_callback=confirm,
+        ask_user_callback=ask_user,
     )
 
 
@@ -354,9 +359,238 @@ class TestHandleListUSBDevices:
 # Unknown tool
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# _handle_ask_user
+# ---------------------------------------------------------------------------
+
+class TestHandleAskUser:
+    def test_free_form_question(self, mock_environment):
+        callback = MagicMock(return_value="USB cable")
+        executor = _make_executor(mock_environment, ask_user=callback)
+        result = _call(executor, "ask_user", {"question": "How is the device connected?"})
+        assert result.success is True
+        assert result.stdout == "USB cable"
+        callback.assert_called_once_with("How is the device connected?", None)
+
+    def test_multiple_choice(self, mock_environment):
+        callback = MagicMock(return_value="USB")
+        executor = _make_executor(mock_environment, ask_user=callback)
+        result = _call(executor, "ask_user", {
+            "question": "Connection type?",
+            "choices": ["USB", "Ethernet", "GPIB"],
+        })
+        assert result.success is True
+        assert result.stdout == "USB"
+        callback.assert_called_once_with(
+            "Connection type?", ["USB", "Ethernet", "GPIB"]
+        )
+
+    def test_no_callback_returns_error(self, mock_environment):
+        executor = _make_executor(mock_environment, ask_user=None)
+        result = _call(executor, "ask_user", {"question": "Are you there?"})
+        assert result.success is False
+        assert "non-interactive" in result.error.lower()
+
+    def test_empty_question_returns_error(self, mock_environment):
+        callback = MagicMock(return_value="yes")
+        executor = _make_executor(mock_environment, ask_user=callback)
+        result = _call(executor, "ask_user", {"question": ""})
+        assert result.success is False
+        assert "No question" in result.error
+        callback.assert_not_called()
+
+    def test_keyboard_interrupt_handled(self, mock_environment):
+        callback = MagicMock(side_effect=KeyboardInterrupt)
+        executor = _make_executor(mock_environment, ask_user=callback)
+        result = _call(executor, "ask_user", {"question": "Still there?"})
+        assert result.success is False
+        assert "cancelled" in result.error.lower()
+
+    def test_eof_error_handled(self, mock_environment):
+        callback = MagicMock(side_effect=EOFError)
+        executor = _make_executor(mock_environment, ask_user=callback)
+        result = _call(executor, "ask_user", {"question": "Still there?"})
+        assert result.success is False
+        assert "cancelled" in result.error.lower()
+
+
+# ---------------------------------------------------------------------------
+# Unknown tool
+# ---------------------------------------------------------------------------
+
 class TestUnknownTool:
     def test_unknown_tool_returns_error(self, mock_environment):
         executor = _make_executor(mock_environment)
         result = _call(executor, "nonexistent_tool", {})
         assert result.success is False
         assert "Unknown tool" in result.error
+
+
+# ---------------------------------------------------------------------------
+# _handle_web_search
+# ---------------------------------------------------------------------------
+
+class TestHandleWebSearch:
+    @patch("hardware_agent.core.executor.DDGS", create=True)
+    def test_success(self, MockDDGS, mock_environment):
+        mock_ddgs_instance = MagicMock()
+        mock_ddgs_instance.__enter__ = MagicMock(return_value=mock_ddgs_instance)
+        mock_ddgs_instance.__exit__ = MagicMock(return_value=False)
+        mock_ddgs_instance.text.return_value = [
+            {"title": "Fix VISA", "href": "https://example.com", "body": "Install pyvisa-py"},
+        ]
+        # Patch the lazy import inside the handler
+        with patch.dict("sys.modules", {"duckduckgo_search": MagicMock(DDGS=lambda: mock_ddgs_instance)}):
+            executor = _make_executor(mock_environment)
+            result = _call(executor, "web_search", {"query": "pyvisa no backend"})
+        assert result.success is True
+        assert "Fix VISA" in result.stdout
+        assert "example.com" in result.stdout
+
+    def test_empty_query(self, mock_environment):
+        executor = _make_executor(mock_environment)
+        result = _call(executor, "web_search", {"query": ""})
+        assert result.success is False
+        assert "No search query" in result.error
+
+    def test_import_error(self, mock_environment):
+        with patch.dict("sys.modules", {"duckduckgo_search": None}):
+            executor = _make_executor(mock_environment)
+            result = _call(executor, "web_search", {"query": "test"})
+        assert result.success is False
+        assert "not installed" in result.error
+
+    def test_search_failure(self, mock_environment):
+        mock_ddgs_instance = MagicMock()
+        mock_ddgs_instance.__enter__ = MagicMock(return_value=mock_ddgs_instance)
+        mock_ddgs_instance.__exit__ = MagicMock(return_value=False)
+        mock_ddgs_instance.text.side_effect = RuntimeError("rate limited")
+        with patch.dict("sys.modules", {"duckduckgo_search": MagicMock(DDGS=lambda: mock_ddgs_instance)}):
+            executor = _make_executor(mock_environment)
+            result = _call(executor, "web_search", {"query": "test"})
+        assert result.success is False
+        assert "Search failed" in result.error
+
+
+# ---------------------------------------------------------------------------
+# _handle_web_fetch
+# ---------------------------------------------------------------------------
+
+class TestHandleWebFetch:
+    @patch("hardware_agent.core.executor.urllib.request.urlopen")
+    def test_success(self, mock_urlopen, mock_environment):
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = b"<html><body><p>Hello world</p></body></html>"
+        mock_resp.__enter__ = MagicMock(return_value=mock_resp)
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_resp
+
+        executor = _make_executor(mock_environment)
+        result = _call(executor, "web_fetch", {"url": "https://example.com"})
+        assert result.success is True
+        assert "Hello world" in result.stdout
+
+    def test_empty_url(self, mock_environment):
+        executor = _make_executor(mock_environment)
+        result = _call(executor, "web_fetch", {"url": ""})
+        assert result.success is False
+        assert "No URL" in result.error
+
+    @patch("hardware_agent.core.executor.urllib.request.urlopen")
+    def test_timeout(self, mock_urlopen, mock_environment):
+        mock_urlopen.side_effect = urllib.request.URLError("timed out")
+        executor = _make_executor(mock_environment)
+        result = _call(executor, "web_fetch", {"url": "https://example.com"})
+        assert result.success is False
+        assert "Fetch failed" in result.error
+
+    @patch("hardware_agent.core.executor.urllib.request.urlopen")
+    def test_content_truncation(self, mock_urlopen, mock_environment):
+        long_text = "x" * 10000
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = f"<html><body>{long_text}</body></html>".encode()
+        mock_resp.__enter__ = MagicMock(return_value=mock_resp)
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_resp
+
+        executor = _make_executor(mock_environment)
+        result = _call(executor, "web_fetch", {"url": "https://example.com"})
+        assert result.success is True
+        assert "truncated" in result.stdout
+        # Content should be capped at 8000 + truncation message
+        assert len(result.stdout) < 8100
+
+
+# ---------------------------------------------------------------------------
+# _handle_run_user_script
+# ---------------------------------------------------------------------------
+
+class TestHandleRunUserScript:
+    @patch("hardware_agent.core.executor.subprocess.run")
+    def test_success_with_confirmation(self, mock_run, mock_environment, tmp_path):
+        script = tmp_path / "test_script.py"
+        script.write_text("print('hello')")
+        mock_run.return_value = MagicMock(
+            returncode=0, stdout="hello\n", stderr=""
+        )
+        executor = _make_executor(mock_environment, confirm=lambda _: True)
+        result = _call(executor, "run_user_script", {"path": str(script)})
+        assert result.success is True
+        assert "hello" in result.stdout
+
+    def test_declined_by_user(self, mock_environment, tmp_path):
+        script = tmp_path / "test_script.py"
+        script.write_text("print('hello')")
+        executor = _make_executor(mock_environment, confirm=lambda _: False)
+        result = _call(executor, "run_user_script", {"path": str(script)})
+        assert result.success is False
+        assert "declined" in result.error.lower()
+
+    def test_file_not_found(self, mock_environment):
+        executor = _make_executor(mock_environment, confirm=lambda _: True)
+        result = _call(executor, "run_user_script", {"path": "/nonexistent/script.py"})
+        assert result.success is False
+        assert "not found" in result.error.lower()
+
+    @patch("hardware_agent.core.executor.subprocess.run")
+    def test_timeout_cap_enforced(self, mock_run, mock_environment, tmp_path):
+        script = tmp_path / "test_script.py"
+        script.write_text("import time; time.sleep(999)")
+        mock_run.side_effect = subprocess.TimeoutExpired(cmd="python", timeout=120)
+        executor = _make_executor(mock_environment, confirm=lambda _: True)
+        # Request 200s timeout, should be capped to 120
+        result = _call(executor, "run_user_script", {"path": str(script), "timeout": 200})
+        assert result.success is False
+        assert "timed out" in result.error.lower()
+        # Verify subprocess was called with capped timeout
+        call_kwargs = mock_run.call_args
+        assert call_kwargs[1]["timeout"] == 120
+
+
+# ---------------------------------------------------------------------------
+# _html_to_text helper
+# ---------------------------------------------------------------------------
+
+class TestHtmlToText:
+    def test_basic_extraction(self):
+        html = "<html><body><p>Hello</p><p>World</p></body></html>"
+        assert "Hello" in _html_to_text(html)
+        assert "World" in _html_to_text(html)
+
+    def test_skips_script_tags(self):
+        html = "<html><body><script>var x=1;</script><p>Visible</p></body></html>"
+        text = _html_to_text(html)
+        assert "var x" not in text
+        assert "Visible" in text
+
+    def test_skips_style_tags(self):
+        html = "<html><body><style>.foo{color:red}</style><p>Visible</p></body></html>"
+        text = _html_to_text(html)
+        assert "color" not in text
+        assert "Visible" in text
+
+    def test_skips_nav_tags(self):
+        html = "<html><body><nav>Menu items</nav><p>Content</p></body></html>"
+        text = _html_to_text(html)
+        assert "Menu" not in text
+        assert "Content" in text

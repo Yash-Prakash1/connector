@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
@@ -15,6 +15,7 @@ from hardware_agent.core.environment import (
     _detect_os_version,
     _detect_usb_devices,
     _detect_visa_resources,
+    _detect_wsl,
 )
 from hardware_agent.core.models import OS, Environment
 
@@ -234,6 +235,52 @@ class TestDetectVisaResources:
         mock_run.side_effect = FileNotFoundError()
         resources = _detect_visa_resources()
         assert resources == []
+
+
+# ---------------------------------------------------------------------------
+# _detect_wsl
+# ---------------------------------------------------------------------------
+
+class TestDetectWSL:
+    @patch("hardware_agent.core.environment.platform")
+    def test_wsl2_kernel_detected(self, mock_platform):
+        mock_uname = MagicMock()
+        mock_uname.release = "5.15.153.1-microsoft-standard-WSL2"
+        mock_platform.uname.return_value = mock_uname
+        assert _detect_wsl() is True
+
+    @patch("hardware_agent.core.environment.platform")
+    def test_wsl1_kernel_detected(self, mock_platform):
+        mock_uname = MagicMock()
+        mock_uname.release = "4.4.0-19041-Microsoft"
+        mock_platform.uname.return_value = mock_uname
+        assert _detect_wsl() is True
+
+    @patch("hardware_agent.core.environment.platform")
+    def test_native_linux_not_detected(self, mock_platform):
+        mock_uname = MagicMock()
+        mock_uname.release = "6.5.0-44-generic"
+        mock_platform.uname.return_value = mock_uname
+        with patch("builtins.open", side_effect=FileNotFoundError):
+            assert _detect_wsl() is False
+
+    @patch("hardware_agent.core.environment.platform")
+    def test_proc_version_fallback(self, mock_platform):
+        mock_uname = MagicMock()
+        mock_uname.release = "unknown-kernel"
+        mock_platform.uname.return_value = mock_uname
+        proc_content = "Linux version 5.15.0 (Microsoft@Microsoft.com)"
+        with patch("builtins.open", mock_open(read_data=proc_content)):
+            assert _detect_wsl() is True
+
+    @patch("hardware_agent.core.environment.platform")
+    def test_proc_version_native_linux(self, mock_platform):
+        mock_uname = MagicMock()
+        mock_uname.release = "6.5.0-44-generic"
+        mock_platform.uname.return_value = mock_uname
+        proc_content = "Linux version 6.5.0-44-generic (buildd@lcy02-amd64)"
+        with patch("builtins.open", mock_open(read_data=proc_content)):
+            assert _detect_wsl() is False
 
 
 # ---------------------------------------------------------------------------

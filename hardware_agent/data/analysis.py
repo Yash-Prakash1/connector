@@ -102,8 +102,14 @@ def _normalize_tool_call(
     elif tool_name == "check_installed":
         return None  # Diagnostic, not a state-changing step
 
+    elif tool_name == "ask_user":
+        return None  # User responses are non-deterministic, can't be replayed
+
     elif tool_name in ("complete", "give_up"):
         return None  # Terminal, not a step
+
+    elif tool_name in ("web_search", "web_fetch", "run_user_script"):
+        return None  # Troubleshoot-only diagnostics, not replayable
 
     return None
 

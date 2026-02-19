@@ -19,6 +19,11 @@ def get_rigol_common_hints(os: str) -> DeviceHints:
         "Rigol Ultra Sigma may claim the USB device — close it before connecting",
         "Some Rigol firmware versions respond slowly to first *IDN? query",
         "Rigol USB devices use vendor ID 0x1AB1",
+        (
+            "Rigol scopes may enumerate as MTP (media) instead of USBTMC (instrument). "
+            "If the device shows as MTP in lsusb or is not visible to VISA, "
+            "the user must switch it on the scope: Utility → IO Setting → USB Device → USBTMC"
+        ),
     ]
 
     os_specific: dict[str, dict] = {}

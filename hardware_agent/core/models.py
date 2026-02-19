@@ -27,6 +27,7 @@ class Environment:
     installed_packages: dict[str, str] = field(default_factory=dict)
     usb_devices: list[str] = field(default_factory=list)
     visa_resources: list[str] = field(default_factory=list)
+    is_wsl: bool = False
 
 
 @dataclass
@@ -65,6 +66,7 @@ class AgentContext:
     environment: Environment
     iterations: list[Iteration] = field(default_factory=list)
     max_iterations: int = 20
+    mode: str = "connect"
 
     def format_history_for_llm(self) -> list[dict]:
         """Return tool_use/tool_result message pairs for Anthropic API."""

@@ -104,20 +104,45 @@ def connect(
         device_module = auto_detect_device(environment)
         if device_module is None:
             available = list_available_modules()
-            if available:
+            if not available:
+                console.print("[red]No device modules available.[/]")
+                raise typer.Exit(1)
+            elif len(available) == 1:
+                # Only one device supported — use it and let the agent
+                # diagnose why it wasn't detected (e.g. WSL2 USB passthrough)
+                device_module = load_module(available[0])
                 console.print(
-                    "[yellow]No device auto-detected. "
-                    "Available devices:[/]"
-                )
-                for name in available:
-                    console.print(f"  - {name}")
-                console.print(
-                    "\nSpecify one with: "
-                    "[bold]hardware-connector connect --device <name>[/]"
+                    f"[yellow]No device auto-detected. "
+                    f"Proceeding with {available[0]} — "
+                    f"the agent will help diagnose the connection.[/]"
                 )
             else:
-                console.print("[red]No device modules available.[/]")
-            raise typer.Exit(1)
+                from rich.prompt import Prompt
+
+                console.print(
+                    "[yellow]No device auto-detected. "
+                    "Which device are you connecting to?[/]"
+                )
+                for i, name in enumerate(available, 1):
+                    console.print(f"  [cyan]{i}.[/] {name}")
+                choice = Prompt.ask(
+                    "Enter number or device name", console=console
+                )
+                try:
+                    idx = int(choice)
+                    if 1 <= idx <= len(available):
+                        choice = available[idx - 1]
+                except ValueError:
+                    pass
+                try:
+                    device_module = load_module(choice)
+                except ValueError:
+                    console.print(f"[red]Unknown device: {choice}[/]")
+                    raise typer.Exit(1)
+                console.print(
+                    f"[yellow]Proceeding with {choice} — "
+                    f"the agent will help diagnose the connection.[/]"
+                )
 
     info = device_module.get_info()
     console.print(f"[green]Using device: {info.name}[/]")
@@ -136,10 +161,89 @@ def connect(
 
     # Write output file if successful
     if result.success and result.final_code:
-        output_file = f"{info.identifier}_connect.py"
+        output_file = result.output_file or f"{info.identifier}_connect.py"
+        from pathlib import Path
+        Path(output_file).parent.mkdir(parents=True, exist_ok=True)
         with open(output_file, "w") as f:
             f.write(result.final_code)
         console.print(f"\n[green]Code saved to: {output_file}[/]")
+
+    raise typer.Exit(0 if result.success else 1)
+
+
+@app.command()
+def troubleshoot(
+    model: Optional[str] = typer.Option(
+        None, "--model", "-m", help="LLM model to use"
+    ),
+    max_iterations: int = typer.Option(
+        30, "--max-iterations", help="Maximum agent iterations"
+    ),
+) -> None:
+    """Troubleshoot issues with a lab instrument setup using an AI agent."""
+    from hardware_agent.core.providers import detect_provider, get_provider_class
+
+    resolved_model = _resolve_model(model)
+    provider_name = detect_provider(resolved_model)
+
+    try:
+        provider_class = get_provider_class(provider_name)
+    except ImportError as e:
+        console.print(f"[red]Error: {e}[/]")
+        raise typer.Exit(1)
+
+    has_key, key_name = provider_class.check_api_key()
+    if not has_key:
+        console.print(
+            f"[red]Error: {key_name} environment variable not set.[/]\n"
+            f"Set it with: export {key_name}='your-key-here'",
+        )
+        raise typer.Exit(1)
+
+    from hardware_agent.core.environment import EnvironmentDetector
+    from hardware_agent.core.module_loader import auto_detect_device
+    from hardware_agent.core.orchestrator import Orchestrator
+    from hardware_agent.devices.null_device import NullDeviceModule
+
+    # Detect environment
+    console.print("[dim]Detecting environment...[/]")
+    environment = EnvironmentDetector.detect_current()
+
+    # Try auto-detect; fall back to NullDeviceModule
+    console.print("[dim]Auto-detecting device...[/]")
+    device_module = auto_detect_device(environment)
+    if device_module is None:
+        device_module = NullDeviceModule()
+        console.print(
+            "[yellow]No device detected. "
+            "Troubleshooting from errors and web search.[/]"
+        )
+    else:
+        info = device_module.get_info()
+        console.print(f"[green]Detected device: {info.name}[/]")
+
+    # Run orchestrator in troubleshoot mode
+    orchestrator = Orchestrator(
+        environment=environment,
+        device_module=device_module,
+        auto_confirm=False,
+        console=console,
+        max_iterations=max_iterations,
+        model=resolved_model,
+        mode="troubleshoot",
+    )
+
+    result = orchestrator.run()
+
+    # Save code if the agent produced any
+    if result.success and result.final_code:
+        output_file = result.output_file
+        if output_file:
+            from pathlib import Path
+            Path(output_file).parent.mkdir(parents=True, exist_ok=True)
+            with open(output_file, "w") as f:
+                f.write(result.final_code)
+            console.print(f"\n[green]Code saved to: {output_file}[/]")
 
     raise typer.Exit(0 if result.success else 1)
 
