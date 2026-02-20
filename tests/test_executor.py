@@ -219,23 +219,20 @@ class TestHandleComplete:
     def test_returns_terminal_success(self, mock_environment):
         executor = _make_executor(mock_environment)
         result = _call(executor, "complete", {
-            "code": "import pyvisa; rm = pyvisa.ResourceManager()",
-            "summary": "Installed pyvisa and connected",
+            "summary": "Installed pyvisa and connected to Rigol DS1054Z",
         })
         assert result.success is True
         assert result.is_terminal is True
-        assert "import pyvisa" in result.stdout
-        assert "Summary:" in result.output
+        assert "Installed pyvisa" in result.stdout
+        assert "Installed pyvisa" in result.output
 
     def test_complete_without_summary(self, mock_environment):
         executor = _make_executor(mock_environment)
-        result = _call(executor, "complete", {
-            "code": "print('hello')",
-        })
+        result = _call(executor, "complete", {})
         assert result.success is True
         assert result.is_terminal is True
-        assert result.stdout == "print('hello')"
-        assert result.output == "print('hello')"
+        assert result.stdout == "Session completed."
+        assert result.output == "Session completed."
 
 
 # ---------------------------------------------------------------------------

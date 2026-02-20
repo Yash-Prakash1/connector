@@ -92,7 +92,7 @@ class TestSessions:
             session_id="sess-1",
             iterations=5,
             duration_seconds=42.5,
-            final_code="print('ok')",
+            summary="Connected to Rigol DS1054Z via USB-TMC",
             error_message=None,
         )
         temp_db.complete_session("sess-1", result)
@@ -104,7 +104,7 @@ class TestSessions:
         assert row["outcome"] == "success"
         assert row["iteration_count"] == 5
         assert row["duration_seconds"] == pytest.approx(42.5)
-        assert row["final_code"] == "print('ok')"
+        assert row["final_code"] == "Connected to Rigol DS1054Z via USB-TMC"
         assert row["updated_at"] is not None
 
     def test_complete_session_failed_outcome(self, temp_db: DataStore):

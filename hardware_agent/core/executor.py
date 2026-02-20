@@ -295,15 +295,11 @@ else:
             )
 
     def _handle_complete(self, params: dict[str, Any]) -> ToolResult:
-        code = params.get("code", "")
-        summary = params.get("summary", "")
-        output = code
-        if summary:
-            output = f"Summary: {summary}\n\n{code}"
+        summary = params.get("summary", "Session completed.")
         return ToolResult(
             success=True,
-            output=output,
-            stdout=code,
+            output=summary,
+            stdout=summary,
             is_terminal=True,
         )
 

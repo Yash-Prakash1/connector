@@ -51,8 +51,8 @@ class LLMClient:
         else:
             initial_message = (
                 f"Connect to the {context.device_name}. Once you have a working "
-                f"connection, ask the user what they want to accomplish with "
-                f"the device, then generate Python code tailored to their goal."
+                f"connection, ask the user what they want to do with it, "
+                f"then do it."
             )
             tools = TOOLS
 

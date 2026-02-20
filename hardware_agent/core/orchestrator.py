@@ -164,7 +164,7 @@ class Orchestrator:
                     session_id=session_id,
                     iterations=replay_result.get("steps_executed", 0),
                     duration_seconds=duration,
-                    final_code=self.device_module.generate_example_code(),
+                    summary="Replayed proven setup sequence successfully.",
                 )
                 self._push_contribution(
                     session_id, context, "success", fingerprint
@@ -237,8 +237,7 @@ class Orchestrator:
                         session_id=session_id,
                         iterations=context.get_current_iteration(),
                         duration_seconds=duration,
-                        final_code=tool_call.parameters.get("code", ""),
-                        output_file=tool_call.parameters.get("file_path"),
+                        summary=tool_call.parameters.get("summary", ""),
                     )
                 else:
                     result = SessionResult(
@@ -400,11 +399,8 @@ class Orchestrator:
                     border_style="green",
                 )
             )
-            if result.final_code:
-                self.console.print("\n[bold]Working code:[/]")
-                self.console.print(
-                    Syntax(result.final_code, "python", theme="monokai")
-                )
+            if result.summary:
+                self.console.print(f"\n[bold]Summary:[/] {result.summary}")
         else:
             self.console.print(
                 Panel(

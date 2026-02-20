@@ -191,7 +191,7 @@ class DataStore:
                 "success" if result.success else "failed",
                 result.iterations,
                 result.duration_seconds,
-                result.final_code,
+                result.summary,
                 result.error_message,
                 session_id,
             ),

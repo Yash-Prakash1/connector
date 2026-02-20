@@ -107,6 +107,5 @@ class SessionResult:
     session_id: str
     iterations: int
     duration_seconds: float
-    output_file: Optional[str] = None
-    final_code: Optional[str] = None
+    summary: Optional[str] = None
     error_message: Optional[str] = None

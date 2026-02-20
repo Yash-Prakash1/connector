@@ -159,15 +159,6 @@ def connect(
 
     result = orchestrator.run()
 
-    # Write output file if successful
-    if result.success and result.final_code:
-        output_file = result.output_file or f"{info.identifier}_connect.py"
-        from pathlib import Path
-        Path(output_file).parent.mkdir(parents=True, exist_ok=True)
-        with open(output_file, "w") as f:
-            f.write(result.final_code)
-        console.print(f"\n[green]Code saved to: {output_file}[/]")
-
     raise typer.Exit(0 if result.success else 1)
 
 
@@ -234,16 +225,6 @@ def troubleshoot(
     )
 
     result = orchestrator.run()
-
-    # Save code if the agent produced any
-    if result.success and result.final_code:
-        output_file = result.output_file
-        if output_file:
-            from pathlib import Path
-            Path(output_file).parent.mkdir(parents=True, exist_ok=True)
-            with open(output_file, "w") as f:
-                f.write(result.final_code)
-            console.print(f"\n[green]Code saved to: {output_file}[/]")
 
     raise typer.Exit(0 if result.success else 1)
 

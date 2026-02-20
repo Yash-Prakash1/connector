@@ -114,7 +114,7 @@ class TestNormalizeIterations:
             make_iteration(
                 number=1,
                 tool_name="complete",
-                params={"code": "print('done')", "summary": "All good"},
+                params={"summary": "All good"},
                 success=True,
                 is_terminal=True,
             ),
@@ -174,7 +174,7 @@ class TestNormalizeIterations:
             make_iteration(
                 4,
                 "complete",
-                {"code": "done"},
+                {"summary": "done"},
                 True,
                 is_terminal=True,
             ),
@@ -323,7 +323,7 @@ class TestAnalyzeSession:
         """Sessions with only terminal/diagnostic steps get no pattern."""
         iterations = [
             make_iteration(
-                1, "complete", {"code": "done"}, True, is_terminal=True
+                1, "complete", {"summary": "done"}, True, is_terminal=True
             ),
         ]
         analysis = analyze_session(

@@ -253,27 +253,18 @@ TOOLS: list[dict] = [
     {
         "name": "complete",
         "description": (
-            "Signal that you have successfully connected to the device. "
-            "Provide the working Python code that connects to and communicates "
-            "with the device."
+            "Signal that the session is finished. Call this only when "
+            "the user says they are done working with the device."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "code": {
-                    "type": "string",
-                    "description": "Complete, runnable Python code for device connection",
-                },
                 "summary": {
                     "type": "string",
-                    "description": "Brief summary of what was done to establish the connection",
-                },
-                "file_path": {
-                    "type": "string",
-                    "description": "Absolute path where the user wants the code saved",
+                    "description": "Brief summary of what was accomplished",
                 },
             },
-            "required": ["code"],
+            "required": ["summary"],
         },
     },
     {

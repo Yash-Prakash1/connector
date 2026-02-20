@@ -115,7 +115,7 @@ class TestOrchestratorSuccessfulRun:
             _make_tool_call("pip_install", {"packages": ["pyvisa", "pyvisa-py"]}),
             _make_tool_call("list_usb_devices", {}),
             _make_tool_call("check_device", {}),
-            _make_tool_call("complete", {"code": "import pyvisa", "summary": "done"}),
+            _make_tool_call("complete", {"summary": "Installed pyvisa and connected"}),
         ]
 
         # Executor returns matching results
@@ -125,7 +125,7 @@ class TestOrchestratorSuccessfulRun:
             _make_tool_result(success=True, stdout="Successfully installed pyvisa"),
             _make_tool_result(success=True, stdout="Bus 001 Device 003: Rigol"),
             _make_tool_result(success=True, stdout="RIGOL,DS1054Z"),
-            _make_tool_result(success=True, stdout="import pyvisa", output="done", is_terminal=True),
+            _make_tool_result(success=True, stdout="Installed pyvisa and connected", is_terminal=True),
         ]
 
         # Store and community are no-ops
@@ -156,7 +156,7 @@ class TestOrchestratorSuccessfulRun:
         assert isinstance(result, SessionResult)
         assert result.success is True
         assert result.iterations == 5
-        assert result.final_code == "import pyvisa"
+        assert result.summary == "Installed pyvisa and connected"
         assert result.error_message is None
 
         # LLM was called 5 times
@@ -191,13 +191,13 @@ class TestOrchestratorSuccessfulRun:
         mock_llm = MockLLMClient.return_value
         mock_llm.get_next_action.side_effect = [
             _make_tool_call("bash", {"command": "echo hello"}),
-            _make_tool_call("complete", {"code": "pass"}),
+            _make_tool_call("complete", {"summary": "Done"}),
         ]
 
         mock_executor = MockToolExecutor.return_value
         mock_executor.execute.side_effect = [
             _make_tool_result(success=True, stdout="hello"),
-            _make_tool_result(success=True, stdout="pass", is_terminal=True),
+            _make_tool_result(success=True, stdout="Done", is_terminal=True),
         ]
 
         mock_store = MockDataStore.return_value
@@ -451,8 +451,8 @@ class TestOrchestratorLoopDetection:
             call_count[0] += 1
             if call_count[0] <= 3:
                 return same_call
-            # After loop detection, give up
-            return _make_tool_call("complete", {"code": "done"})
+            # After loop detection, complete
+            return _make_tool_call("complete", {"summary": "done"})
 
         mock_llm = MockLLMClient.return_value
         mock_llm.get_next_action.side_effect = llm_side_effect
@@ -532,7 +532,7 @@ class TestOrchestratorTroubleshootMode:
 
         mock_llm = MockLLMClient.return_value
         mock_llm.get_next_action.side_effect = [
-            _make_tool_call("complete", {"code": "fixed"}),
+            _make_tool_call("complete", {"summary": "fixed"}),
         ]
 
         mock_executor = MockToolExecutor.return_value
@@ -593,12 +593,12 @@ class TestOrchestratorTroubleshootMode:
 
         mock_llm = MockLLMClient.return_value
         mock_llm.get_next_action.side_effect = [
-            _make_tool_call("complete", {"code": "# solution", "summary": "Fixed it"}),
+            _make_tool_call("complete", {"summary": "Fixed it"}),
         ]
 
         mock_executor = MockToolExecutor.return_value
         mock_executor.execute.side_effect = [
-            _make_tool_result(success=True, stdout="# solution", is_terminal=True),
+            _make_tool_result(success=True, stdout="Fixed it", is_terminal=True),
         ]
 
         mock_store = MockDataStore.return_value
@@ -623,7 +623,7 @@ class TestOrchestratorTroubleshootMode:
         result = orch.run()
 
         assert result.success is True
-        assert result.final_code == "# solution"
+        assert result.summary == "Fixed it"
 
     @patch("hardware_agent.core.orchestrator.analyze_session", return_value=None)
     @patch("hardware_agent.core.orchestrator.fingerprint_initial_state", return_value="fp123")
@@ -648,13 +648,13 @@ class TestOrchestratorTroubleshootMode:
         mock_llm = MockLLMClient.return_value
         mock_llm.get_next_action.side_effect = [
             _make_tool_call("web_search", {"query": "pyvisa error"}),
-            _make_tool_call("complete", {"code": "# fix"}),
+            _make_tool_call("complete", {"summary": "Applied fix"}),
         ]
 
         mock_executor = MockToolExecutor.return_value
         mock_executor.execute.side_effect = [
             _make_tool_result(success=True, stdout="1. Fix found"),
-            _make_tool_result(success=True, stdout="# fix", is_terminal=True),
+            _make_tool_result(success=True, stdout="Applied fix", is_terminal=True),
         ]
 
         mock_store = MockDataStore.return_value
