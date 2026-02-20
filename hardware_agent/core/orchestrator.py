@@ -316,9 +316,10 @@ class Orchestrator:
             self.community.push_contribution({
                 "device_type": context.device_type,
                 "os": context.environment.os.value,
+                "success": outcome == "success",
+                "steps": steps,
                 "os_version": context.environment.os_version,
                 "initial_state_fingerprint": fingerprint,
-                "steps": steps,
                 "outcome": outcome,
                 "total_steps": len(context.iterations),
                 "agent_version": "0.1.0",

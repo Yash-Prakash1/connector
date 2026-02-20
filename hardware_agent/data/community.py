@@ -11,15 +11,19 @@ from hardware_agent.data.store import DataStore
 
 logger = logging.getLogger(__name__)
 
-# Public anon key — safe to embed. RLS policies protect data.
-SUPABASE_URL = os.environ.get(
-    "HARDWARE_AGENT_SUPABASE_URL",
-    "https://placeholder.supabase.co",
-)
-SUPABASE_ANON_KEY = os.environ.get(
-    "HARDWARE_AGENT_SUPABASE_KEY",
-    "placeholder-anon-key",
-)
+def _resolve_credentials(
+    store: DataStore,
+) -> tuple[Optional[str], Optional[str]]:
+    """Resolve Supabase credentials: env var → config DB → disabled."""
+    url = os.environ.get("HARDWARE_AGENT_SUPABASE_URL") or store.get_config(
+        "supabase-url"
+    )
+    key = os.environ.get("HARDWARE_AGENT_SUPABASE_KEY") or store.get_config(
+        "supabase-key"
+    )
+    if url and key:
+        return url, key
+    return None, None
 
 
 class CommunityKnowledge:
@@ -32,12 +36,22 @@ class CommunityKnowledge:
         supabase_key: Optional[str] = None,
     ):
         self.store = store
-        self.supabase_url = supabase_url or SUPABASE_URL
-        self.supabase_key = supabase_key or SUPABASE_ANON_KEY
+        if supabase_url and supabase_key:
+            self.supabase_url = supabase_url
+            self.supabase_key = supabase_key
+        else:
+            self.supabase_url, self.supabase_key = _resolve_credentials(store)
         self._client: Any = None
+
+    @property
+    def is_configured(self) -> bool:
+        """True when both Supabase URL and key are available."""
+        return self.supabase_url is not None and self.supabase_key is not None
 
     def _get_client(self) -> Any:
         """Lazy-initialize Supabase client."""
+        if not self.is_configured:
+            return None
         if self._client is None:
             try:
                 from supabase import create_client

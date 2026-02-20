@@ -327,7 +327,7 @@ def config(
                 console.print(f"[yellow]{key} is not set[/]")
         else:
             # Show all config
-            for k in ["telemetry", "model"]:
+            for k in ["telemetry", "model", "supabase-url", "supabase-key"]:
                 val = store.get_config(k)
                 console.print(f"{k} = {val or '(not set)'}")
     elif action == "set":
@@ -335,7 +335,7 @@ def config(
             console.print("[red]Usage: hardware-connector config set <key> <value>[/]")
             raise typer.Exit(1)
         # Validate
-        valid_keys = {"telemetry", "model"}
+        valid_keys = {"telemetry", "model", "supabase-url", "supabase-key"}
         if key not in valid_keys:
             console.print(
                 f"[red]Unknown config key: {key}. "

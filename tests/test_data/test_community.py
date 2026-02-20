@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
@@ -74,6 +74,71 @@ def _mock_supabase_client(
 
     client.table.side_effect = _table
     return client
+
+
+# ── is_configured ─────────────────────────────────────────────────────
+
+
+class TestIsConfigured:
+    """Credential resolution: env var → config DB → disabled."""
+
+    def test_not_configured_by_default(self, temp_db: DataStore):
+        ck = CommunityKnowledge(store=temp_db)
+        assert ck.is_configured is False
+
+    def test_configured_via_constructor(self, temp_db: DataStore):
+        ck = CommunityKnowledge(
+            store=temp_db,
+            supabase_url="https://x.supabase.co",
+            supabase_key="key-123",
+        )
+        assert ck.is_configured is True
+        assert ck.supabase_url == "https://x.supabase.co"
+        assert ck.supabase_key == "key-123"
+
+    def test_configured_via_config_db(self, temp_db: DataStore):
+        temp_db.set_config("supabase-url", "https://db.supabase.co")
+        temp_db.set_config("supabase-key", "db-key")
+        ck = CommunityKnowledge(store=temp_db)
+        assert ck.is_configured is True
+        assert ck.supabase_url == "https://db.supabase.co"
+        assert ck.supabase_key == "db-key"
+
+    @patch.dict(
+        "os.environ",
+        {
+            "HARDWARE_AGENT_SUPABASE_URL": "https://env.supabase.co",
+            "HARDWARE_AGENT_SUPABASE_KEY": "env-key",
+        },
+    )
+    def test_configured_via_env_vars(self, temp_db: DataStore):
+        # Env vars take priority over config DB
+        temp_db.set_config("supabase-url", "https://db.supabase.co")
+        temp_db.set_config("supabase-key", "db-key")
+        ck = CommunityKnowledge(store=temp_db)
+        assert ck.is_configured is True
+        assert ck.supabase_url == "https://env.supabase.co"
+        assert ck.supabase_key == "env-key"
+
+    def test_partial_config_not_configured(self, temp_db: DataStore):
+        temp_db.set_config("supabase-url", "https://db.supabase.co")
+        # No key set
+        ck = CommunityKnowledge(store=temp_db)
+        assert ck.is_configured is False
+
+    def test_get_client_returns_none_when_not_configured(
+        self, temp_db: DataStore
+    ):
+        ck = CommunityKnowledge(store=temp_db)
+        assert ck._get_client() is None
+
+    def test_push_queues_when_not_configured(self, temp_db: DataStore):
+        ck = CommunityKnowledge(store=temp_db)
+        result = ck.push_contribution({"device_type": "test"})
+        assert result is False
+        pending = temp_db.get_pending_uploads()
+        assert len(pending) == 1
+        assert pending[0]["payload"] == {"device_type": "test"}
 
 
 # ── is_enabled ────────────────────────────────────────────────────────
