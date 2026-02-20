@@ -11,19 +11,31 @@ from hardware_agent.data.store import DataStore
 
 logger = logging.getLogger(__name__)
 
+# Public anon key — safe to embed. RLS policies protect data.
+_DEFAULT_URL = "https://fgqadwrjnxcufcpthlpd.supabase.co"
+_DEFAULT_KEY = (
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+    "eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZncWFkd3JqbnhjdWZjcHRobHBkIiwi"
+    "cm9sZSI6ImFub24iLCJpYXQiOjE3NzE1NjQzNjMsImV4cCI6MjA4NzE0MDM2M30."
+    "QTqRvjBGaUFP8HmFFZhTP-eI7tEt-1B35R4fTZ7lQEw"
+)
+
+
 def _resolve_credentials(
     store: DataStore,
 ) -> tuple[Optional[str], Optional[str]]:
-    """Resolve Supabase credentials: env var → config DB → disabled."""
-    url = os.environ.get("HARDWARE_AGENT_SUPABASE_URL") or store.get_config(
-        "supabase-url"
+    """Resolve Supabase credentials: env var → config DB → embedded defaults."""
+    url = (
+        os.environ.get("HARDWARE_AGENT_SUPABASE_URL")
+        or store.get_config("supabase-url")
+        or _DEFAULT_URL
     )
-    key = os.environ.get("HARDWARE_AGENT_SUPABASE_KEY") or store.get_config(
-        "supabase-key"
+    key = (
+        os.environ.get("HARDWARE_AGENT_SUPABASE_KEY")
+        or store.get_config("supabase-key")
+        or _DEFAULT_KEY
     )
-    if url and key:
-        return url, key
-    return None, None
+    return url, key
 
 
 class CommunityKnowledge:

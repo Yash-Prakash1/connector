@@ -82,9 +82,9 @@ def _mock_supabase_client(
 class TestIsConfigured:
     """Credential resolution: env var → config DB → disabled."""
 
-    def test_not_configured_by_default(self, temp_db: DataStore):
+    def test_configured_by_default(self, temp_db: DataStore):
         ck = CommunityKnowledge(store=temp_db)
-        assert ck.is_configured is False
+        assert ck.is_configured is True
 
     def test_configured_via_constructor(self, temp_db: DataStore):
         ck = CommunityKnowledge(
@@ -120,20 +120,29 @@ class TestIsConfigured:
         assert ck.supabase_url == "https://env.supabase.co"
         assert ck.supabase_key == "env-key"
 
-    def test_partial_config_not_configured(self, temp_db: DataStore):
-        temp_db.set_config("supabase-url", "https://db.supabase.co")
-        # No key set
-        ck = CommunityKnowledge(store=temp_db)
-        assert ck.is_configured is False
+    def test_not_configured_when_constructor_overrides_with_none(
+        self, temp_db: DataStore
+    ):
+        ck = CommunityKnowledge(
+            store=temp_db, supabase_url=None, supabase_key=None
+        )
+        # Falls back to embedded defaults, so still configured
+        assert ck.is_configured is True
 
     def test_get_client_returns_none_when_not_configured(
         self, temp_db: DataStore
     ):
         ck = CommunityKnowledge(store=temp_db)
+        # Force unconfigured state
+        ck.supabase_url = None
+        ck.supabase_key = None
         assert ck._get_client() is None
 
     def test_push_queues_when_not_configured(self, temp_db: DataStore):
         ck = CommunityKnowledge(store=temp_db)
+        # Force unconfigured state
+        ck.supabase_url = None
+        ck.supabase_key = None
         result = ck.push_contribution({"device_type": "test"})
         assert result is False
         pending = temp_db.get_pending_uploads()
