@@ -1,6 +1,6 @@
-# Hardware Connector — Progress Tracker
+# Hardware Connector Progress Tracker
 
-## Phase 1: End-to-End Skeleton with DS1054Z — COMPLETE
+## Phase 1: End-to-End Skeleton with DS1054Z (COMPLETE)
 
 **Status: Done** | All CLI commands working
 
@@ -36,7 +36,7 @@
 
 ---
 
-## Phase 1.5: Troubleshoot Command — COMPLETE
+## Phase 1.5: Troubleshoot Command (COMPLETE)
 
 **Status: Done** | 387 tests passing | `hardware-connector troubleshoot` working
 
@@ -62,13 +62,13 @@ Promise: **Diagnoses why a lab instrument setup is not behaving as expected and 
 
 ### Troubleshoot Agent Flow
 
-1. **Listen** — ask the user what's going wrong
-2. **Observe** — if connected, query the device to understand its actual state (settings, data, error registers)
-3. **Diagnose** — analyze device data to form a specific diagnosis (not just parroting the user's words)
-4. **Search** — web search + community DB with the real diagnosis
-5. **Suggest** — present options to the user, ask before applying
-6. **Fix** — apply the chosen fix via SCPI / code / config change
-7. **Verify** — re-query device to confirm the fix worked
+1. **Listen**, ask the user what's going wrong
+2. **Observe**, if connected, query the device to understand its actual state (settings, data, error registers)
+3. **Diagnose**, analyze device data to form a specific diagnosis (not just parroting the user's words)
+4. **Search**, web search + community DB with the real diagnosis
+5. **Suggest**, present options to the user, ask before applying
+6. **Fix**, apply the chosen fix via SCPI / code / config change
+7. **Verify**, re-query device to confirm the fix worked
 
 ### Test Files (14 test files, 387 tests)
 
@@ -101,11 +101,11 @@ Promise: **Diagnoses why a lab instrument setup is not behaving as expected and 
 |------|----------|-------|
 | `store.save_analysis()` is a no-op | Medium | Method exists but doesn't persist analysis results to SQLite |
 | Supabase credentials are placeholders | Medium | URL and anon key need real values; env var overrides work |
-| `hints.yaml` not created | Low | Hints are in Python code directly — works fine, YAML was optional |
+| `hints.yaml` not created | Low | Hints are in Python code directly, works fine, YAML was optional |
 | No `.gitignore` | Low | Should add to exclude __pycache__, .db files, etc. |
 | No `README.md` | Low | Plan puts this in Phase 4 |
 
-### Phase 2: Remaining Rigol Devices — NOT STARTED
+### Phase 2: Remaining Rigol Devices (NOT STARTED)
 
 | Device | Module Path | USB Product ID |
 |--------|-------------|----------------|
@@ -113,16 +113,16 @@ Promise: **Diagnoses why a lab instrument setup is not behaving as expected and 
 | Rigol DL3021 (electronic load) | `hardware_agent/devices/rigol_dl3021/module.py` | TBD from lsusb |
 | Rigol M300 (DAQ/switching) | `hardware_agent/devices/rigol_m300/module.py` | TBD from lsusb |
 
-Each is ~60-80 lines + test file. Architecture supports this — just set class attributes and override hooks.
+Each is ~60-80 lines + test file. Architecture supports this, just set class attributes and override hooks.
 
-### Phase 3: Non-Rigol Devices — NOT STARTED
+### Phase 3: Non-Rigol Devices (NOT STARTED)
 
 | Device | Module Path | Notes |
 |--------|-------------|-------|
 | Siglent SDS1104X-E | `hardware_agent/devices/siglent_sds1104xe/module.py` | New vendor, tests cross-manufacturer support |
 | Keithley 2400 | `hardware_agent/devices/keithley_2400/module.py` | May need GPIB resource string handling in VisaDevice |
 
-### Phase 4: Polish — NOT STARTED
+### Phase 4: Polish (NOT STARTED)
 
 - Real hardware validation against all 4 physical Rigol devices
 - Fix product IDs, hints, quirks discovered during testing

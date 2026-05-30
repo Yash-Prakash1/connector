@@ -1,4 +1,4 @@
-"""Device registry — auto-discovers device modules from subdirectories."""
+"""Device registry, auto-discovers device modules from subdirectories."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Tier 2: VisaDevice — shared VISA/SCPI logic for all VISA instruments."""
+"""Tier 2: VisaDevice, shared VISA/SCPI logic for all VISA instruments."""
 
 from __future__ import annotations
 
@@ -160,9 +160,9 @@ inst.close()
                 "or brew install libusb)"
             ),
             "Resource busy": "Close other software using the device",
-            "VI_ERROR_RSRC_NFOUND": "Device not found — check USB connection",
-            "Permission denied": "USB permissions issue — see setup steps",
-            "[Errno 13]": "USB permissions issue — see setup steps",
+            "VI_ERROR_RSRC_NFOUND": "Device not found, check USB connection",
+            "Permission denied": "USB permissions issue, see setup steps",
+            "[Errno 13]": "USB permissions issue, see setup steps",
             "Timeout": "Try a different USB port or check device power",
         }
 

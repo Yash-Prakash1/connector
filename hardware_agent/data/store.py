@@ -1,4 +1,4 @@
-"""Local data store — SQLite at ~/.hardware-agent/data.db."""
+"""Local data store, SQLite at ~/.hardware-agent/data.db."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Module loader — thin wrapper around device registry for the orchestrator/CLI."""
+"""Module loader, thin wrapper around device registry for the orchestrator/CLI."""
 
 from __future__ import annotations
 

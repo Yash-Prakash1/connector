@@ -1,4 +1,4 @@
-"""Community knowledge client — Supabase communication with graceful offline."""
+"""Community knowledge client, Supabase communication with graceful offline."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from hardware_agent.data.store import DataStore
 
 logger = logging.getLogger(__name__)
 
-# Public anon key — safe to embed. RLS policies protect data.
+# Public anon key, safe to embed. RLS policies protect data.
 _DEFAULT_URL = "https://fgqadwrjnxcufcpthlpd.supabase.co"
 _DEFAULT_KEY = (
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."

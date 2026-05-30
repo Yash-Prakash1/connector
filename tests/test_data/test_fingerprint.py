@@ -1,4 +1,4 @@
-"""Tests for hardware_agent.data.fingerprint — initial state fingerprinting."""
+"""Tests for hardware_agent.data.fingerprint, initial state fingerprinting."""
 
 from __future__ import annotations
 

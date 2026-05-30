@@ -1,4 +1,4 @@
-"""Fingerprinting — hashes initial state for pattern matching."""
+"""Fingerprinting, hashes initial state for pattern matching."""
 
 from __future__ import annotations
 

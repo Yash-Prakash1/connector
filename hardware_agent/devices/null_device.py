@@ -30,7 +30,7 @@ class NullDeviceModule(DeviceModule):
         return False
 
     def verify_connection(self) -> tuple[bool, str]:
-        return False, "No device configured — troubleshoot mode"
+        return False, "No device configured, troubleshoot mode"
 
     def generate_example_code(self) -> str:
         return ""

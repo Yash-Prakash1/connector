@@ -1,4 +1,4 @@
-"""Orchestrator — the main agent loop."""
+"""Orchestrator, the main agent loop."""
 
 from __future__ import annotations
 
@@ -135,7 +135,7 @@ class Orchestrator:
                 device_info.identifier, self.environment.os.value
             )
 
-        # 3. TRY REPLAY (skip in troubleshoot mode — always interactive)
+        # 3. TRY REPLAY (skip in troubleshoot mode, always interactive)
         candidate = None
         if self.mode != "troubleshoot":
             candidate = self.replay_engine.find_replay_candidate(

@@ -1,4 +1,4 @@
-"""Tests for hardware_agent.core.orchestrator — Orchestrator.run()."""
+"""Tests for hardware_agent.core.orchestrator, Orchestrator.run()."""
 
 from __future__ import annotations
 
@@ -497,7 +497,7 @@ class TestOrchestratorLoopDetection:
         # The third call (index 2) should have loop_breaker=None still
         # (loop detected *after* the 2nd execution, so the 3rd LLM call gets the breaker)
         third_call_kwargs = calls[2]
-        # calls[2] is either positional or keyword — check for loop_breaker
+        # calls[2] is either positional or keyword, check for loop_breaker
         # The orchestrator passes loop_breaker as positional arg #3 or keyword
         if len(third_call_kwargs[0]) >= 3:
             assert third_call_kwargs[0][2] is not None  # loop_breaker set

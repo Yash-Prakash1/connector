@@ -1,4 +1,4 @@
-"""Environment detection — OS, Python, packages, USB, VISA."""
+"""Environment detection, OS, Python, packages, USB, VISA."""
 
 from __future__ import annotations
 

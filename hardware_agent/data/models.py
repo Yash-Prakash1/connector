@@ -1,4 +1,4 @@
-"""Data layer models — structures for community patterns and contributions."""
+"""Data layer models, structures for community patterns and contributions."""
 
 from __future__ import annotations
 

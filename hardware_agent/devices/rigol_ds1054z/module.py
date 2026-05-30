@@ -21,7 +21,7 @@ class RigolDS1054ZModule(VisaDevice):
 
     def _get_device_specific_quirks(self) -> list[str]:
         return [
-            "USB 3.0 ports may cause timeout issues — try USB 2.0",
+            "USB 3.0 ports may cause timeout issues, try USB 2.0",
             "Binary waveform data has TMC header that must be stripped",
             "VXI-11 (LAN) is slower than USB TMC",
         ]

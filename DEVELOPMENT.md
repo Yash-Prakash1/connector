@@ -1,10 +1,10 @@
-# Hardware Connector — Development Guide
+# Hardware Connector Development Guide
 
 ## Project Overview
 
 CLI tool (`hardware-connector`) that helps engineers connect to lab instruments and diagnose why setups aren't behaving as expected. Two modes:
-- **`connect`** — AI agent iteratively diagnoses connection issues, outputs working Python code
-- **`troubleshoot`** — Conversational agent that observes the device, searches the web, and tells you what to check next
+- **`connect`**, AI agent iteratively diagnoses connection issues, outputs working Python code
+- **`troubleshoot`**, Conversational agent that observes the device, searches the web, and tells you what to check next
 
 Cross-user learning system shares anonymized patterns via Supabase.
 
@@ -32,21 +32,21 @@ Tier 2: VisaDevice/GenericDevice (hardware_agent/devices/visa_device.py, generic
 Tier 3: RigolDS1054ZModule       (hardware_agent/devices/rigol_ds1054z/module.py)
 ```
 
-- Tier 1 is protocol-agnostic — no mention of VISA, SCPI, USB IDs
-- Tier 2 has all shared VISA logic — detection, verification, hint merging
+- Tier 1 is protocol-agnostic, no mention of VISA, SCPI, USB IDs
+- Tier 2 has all shared VISA logic, detection, verification, hint merging
 - Tier 3 is just class attributes + overrides (~65 lines per device)
 
 ### Key Directories
 
 ```
 hardware_agent/
-  core/         — orchestrator, LLM client, tools, executor, loop detector, environment
-  devices/      — base classes, registry, device modules (subdirectories), null_device
-  data/         — SQLite store, Supabase community client, analysis, replay engine
-  prompts/      — system.txt (connect), troubleshoot.txt (troubleshoot), stuck.txt (loop breaker)
+  core/, orchestrator, LLM client, tools, executor, loop detector, environment
+  devices/, base classes, registry, device modules (subdirectories), null_device
+  data/, SQLite store, Supabase community client, analysis, replay engine
+  prompts/, system.txt (connect), troubleshoot.txt (troubleshoot), stuck.txt (loop breaker)
 tests/
-  test_devices/ — device tier tests
-  test_data/    — data layer tests
+  test_devices/, device tier tests
+  test_data/, data layer tests
 ```
 
 ### Device Registry
@@ -85,7 +85,7 @@ Session Start → Pull community patterns → Skip replay (always interactive)
 
 ## Testing
 
-All tests use mocking — no real hardware, API calls, or Supabase needed.
+All tests use mocking, no real hardware, API calls, or Supabase needed.
 
 - `conftest.py` has shared fixtures: `mock_environment`, `mock_rigol_module`, `temp_db`, `mock_agent_context`
 - Test helpers: `mock_llm_response(tool_name, params)`, `make_iteration(...)`

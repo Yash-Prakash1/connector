@@ -1,4 +1,4 @@
-"""Tests for hardware_agent.core.loop_detector — LoopDetector."""
+"""Tests for hardware_agent.core.loop_detector, LoopDetector."""
 
 from __future__ import annotations
 
@@ -57,11 +57,11 @@ class TestRepeatedFailure:
         tc = _make_tool_call("bash", {"command": "lsusb"})
         bad_result = _make_result(success=False, stderr="permission denied")
 
-        # First failure — no loop
+        # First failure, no loop
         w1 = detector.check(tc, bad_result)
         assert w1.is_loop is False
 
-        # Second failure (same action+error) — loop triggered
+        # Second failure (same action+error), loop triggered
         w2 = detector.check(tc, bad_result)
         assert w2.is_loop is True
         assert "same error" in w2.message.lower()
@@ -126,7 +126,7 @@ class TestSuccessDoesNotTrigger:
         w1 = detector.check(tc, bad_result)  # count=1
         assert w1.is_loop is False
 
-        w_ok = detector.check(tc, ok_result)  # success — skipped
+        w_ok = detector.check(tc, ok_result)  # success, skipped
         assert w_ok.is_loop is False
 
         w2 = detector.check(tc, bad_result)  # count=2 -> loop

@@ -1,11 +1,11 @@
--- Hardware Connector — Supabase schema
+-- Hardware Connector, Supabase schema
 -- Apply via: Supabase Dashboard → SQL Editor → paste & run
 --
 -- Four tables:
---   contributions        — raw session data pushed by clients (INSERT only)
---   resolution_patterns  — aggregated patterns (SELECT only, written by trigger)
---   error_resolutions    — stub for MVP (SELECT only, empty)
---   working_configurations — stub for MVP (SELECT only, empty)
+--   contributions, raw session data pushed by clients (INSERT only)
+--   resolution_patterns, aggregated patterns (SELECT only, written by trigger)
+--   error_resolutions, stub for MVP (SELECT only, empty)
+--   working_configurations, stub for MVP (SELECT only, empty)
 
 -- ── contributions ────────────────────────────────────────────────────
 

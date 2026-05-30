@@ -39,5 +39,5 @@ class BaseLLMProvider(ABC):
         """Check whether the required API key is set.
 
         Returns:
-            (is_set, env_var_name) — e.g. (True, "ANTHROPIC_API_KEY").
+            (is_set, env_var_name), e.g. (True, "ANTHROPIC_API_KEY").
         """

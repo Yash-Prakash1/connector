@@ -1,4 +1,4 @@
-"""Tests for hardware_agent.core.environment — EnvironmentDetector."""
+"""Tests for hardware_agent.core.environment, EnvironmentDetector."""
 
 from __future__ import annotations
 

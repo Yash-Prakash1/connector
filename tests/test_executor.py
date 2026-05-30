@@ -1,4 +1,4 @@
-"""Tests for hardware_agent.core.executor — ToolExecutor."""
+"""Tests for hardware_agent.core.executor, ToolExecutor."""
 
 from __future__ import annotations
 

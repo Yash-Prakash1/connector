@@ -1,4 +1,4 @@
-"""Replay engine — replays proven patterns directly without LLM."""
+"""Replay engine, replays proven patterns directly without LLM."""
 
 from __future__ import annotations
 

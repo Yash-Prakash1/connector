@@ -1,4 +1,4 @@
-"""Tier 1: DeviceModule — protocol-agnostic abstract base class."""
+"""Tier 1: DeviceModule, protocol-agnostic abstract base class."""
 
 from __future__ import annotations
 

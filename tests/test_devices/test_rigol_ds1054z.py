@@ -1,4 +1,4 @@
-"""Tests for hardware_agent.devices.rigol_ds1054z.module — RigolDS1054ZModule."""
+"""Tests for hardware_agent.devices.rigol_ds1054z.module, RigolDS1054ZModule."""
 
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ class TestGetInfo:
 
 
 # ---------------------------------------------------------------------------
-# get_hints — three-layer merge (shared VISA + Rigol vendor + DS1054Z device)
+# get_hints, three-layer merge (shared VISA + Rigol vendor + DS1054Z device)
 # ---------------------------------------------------------------------------
 
 

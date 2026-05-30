@@ -11,12 +11,12 @@ def get_rigol_common_hints(os: str) -> DeviceHints:
     """Return hints shared by all Rigol instruments."""
     common_errors: dict[str, str] = {
         "Resource busy": (
-            "Close Rigol Ultra Sigma software — it claims the USB device exclusively"
+            "Close Rigol Ultra Sigma software, it claims the USB device exclusively"
         ),
     }
 
     known_quirks = [
-        "Rigol Ultra Sigma may claim the USB device — close it before connecting",
+        "Rigol Ultra Sigma may claim the USB device, close it before connecting",
         "Some Rigol firmware versions respond slowly to first *IDN? query",
         "Rigol USB devices use vendor ID 0x1AB1",
         (

@@ -1,4 +1,4 @@
-"""Tests for hardware_agent.devices.registry — auto-discovery and lookup."""
+"""Tests for hardware_agent.devices.registry, auto-discovery and lookup."""
 
 from __future__ import annotations
 

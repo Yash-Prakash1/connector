@@ -1,4 +1,4 @@
-"""Post-session analysis — extracts shareable patterns from iteration logs."""
+"""Post-session analysis, extracts shareable patterns from iteration logs."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Tests for hardware_agent.data.store — DataStore SQLite operations."""
+"""Tests for hardware_agent.data.store, DataStore SQLite operations."""
 
 from __future__ import annotations
 
@@ -505,7 +505,7 @@ def _make_analysis(
 
 
 class TestSaveAnalysis:
-    """save_analysis — persist patterns and error resolutions."""
+    """save_analysis, persist patterns and error resolutions."""
 
     def test_successful_session_inserts_pattern(self, temp_db: DataStore):
         analysis = _make_analysis(outcome="success")

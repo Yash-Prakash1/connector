@@ -1,4 +1,4 @@
-"""Tests for hardware_agent.data.community — CommunityKnowledge client."""
+"""Tests for hardware_agent.data.community, CommunityKnowledge client."""
 
 from __future__ import annotations
 

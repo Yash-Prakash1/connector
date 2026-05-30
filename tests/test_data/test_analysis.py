@@ -1,4 +1,4 @@
-"""Tests for hardware_agent.data.analysis — session analysis and normalization."""
+"""Tests for hardware_agent.data.analysis, session analysis and normalization."""
 
 from __future__ import annotations
 
@@ -205,7 +205,7 @@ class TestNormalizeIterations:
 
 
 class TestAnalyzeSession:
-    """Full session analysis — error_resolutions extraction."""
+    """Full session analysis, error_resolutions extraction."""
 
     def test_error_resolution_pair(self):
         """A failed iteration followed by a success yields an ErrorResolution."""

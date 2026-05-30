@@ -1,4 +1,4 @@
-"""Tests for hardware_agent.devices.base — ABC, dataclasses, and _run_python helper."""
+"""Tests for hardware_agent.devices.base, ABC, dataclasses, and _run_python helper."""
 
 from __future__ import annotations
 

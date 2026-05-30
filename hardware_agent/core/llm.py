@@ -1,4 +1,4 @@
-"""LLM client — provider-agnostic interface for tool_use agents."""
+"""LLM client, provider-agnostic interface for tool_use agents."""
 
 from __future__ import annotations
 
@@ -150,11 +150,11 @@ class LLMClient:
                 "If the device is not visible in lsusb, use ONE ask_user call "
                 "to give the user all steps at once:\n"
                 "  1. Open PowerShell as Administrator on Windows\n"
-                "  2. Run: usbipd list — find the device BUSID\n"
+                "  2. Run: usbipd list, find the device BUSID\n"
                 "  3. Run: usbipd bind --busid <BUSID>\n"
                 "  4. Run: usbipd attach --wsl --busid <BUSID>\n"
                 "Offer choices like [\"Done\", \"I got an error\", \"usbipd not installed\"].\n"
-                "After user confirms, verify with lsusb yourself — NEVER ask "
+                "After user confirms, verify with lsusb yourself, NEVER ask "
                 "the user to paste command output.\n"
             )
 

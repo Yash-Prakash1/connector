@@ -1,4 +1,4 @@
-"""Tests for hardware_agent.data.replay — ReplayEngine pattern execution."""
+"""Tests for hardware_agent.data.replay, ReplayEngine pattern execution."""
 
 from __future__ import annotations
 

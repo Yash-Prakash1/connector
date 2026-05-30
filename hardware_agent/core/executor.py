@@ -1,4 +1,4 @@
-"""Tool executor — executes tools called by the LLM with safety checks."""
+"""Tool executor, executes tools called by the LLM with safety checks."""
 
 from __future__ import annotations
 

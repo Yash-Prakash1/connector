@@ -1,4 +1,4 @@
-"""Tests for hardware_agent.core.llm — LLMClient."""
+"""Tests for hardware_agent.core.llm, LLMClient."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from tests.conftest import make_iteration, mock_llm_response
 
 
 # ---------------------------------------------------------------------------
-# get_next_action — delegates to provider
+# get_next_action, delegates to provider
 # ---------------------------------------------------------------------------
 
 class TestGetNextAction:
@@ -123,7 +123,7 @@ class TestGetNextAction:
 
 
 # ---------------------------------------------------------------------------
-# get_next_action — no tool_use block → ValueError
+# get_next_action, no tool_use block → ValueError
 # ---------------------------------------------------------------------------
 
 class TestGetNextActionNoToolUse:

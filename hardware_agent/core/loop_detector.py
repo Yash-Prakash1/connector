@@ -1,4 +1,4 @@
-"""Loop detector — prevents the agent from repeating failed actions."""
+"""Loop detector, prevents the agent from repeating failed actions."""
 
 from __future__ import annotations
 

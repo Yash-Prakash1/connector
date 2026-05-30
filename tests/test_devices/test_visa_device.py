@@ -1,4 +1,4 @@
-"""Tests for hardware_agent.devices.visa_device — VisaDevice hint merging, detection, etc."""
+"""Tests for hardware_agent.devices.visa_device, VisaDevice hint merging, detection, etc."""
 
 from __future__ import annotations
 

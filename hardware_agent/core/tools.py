@@ -1,4 +1,4 @@
-"""Tool definitions for the LLM agent — Anthropic tool_use schema."""
+"""Tool definitions for the LLM agent, Anthropic tool_use schema."""
 
 from __future__ import annotations
 
@@ -208,7 +208,7 @@ TOOLS: list[dict] = [
         "name": "ask_user",
         "description": (
             "Ask the user a question. Use this when you need information you "
-            "cannot determine programmatically — connection type, physical "
+            "cannot determine programmatically, connection type, physical "
             "device state, operating environment, or confirmation that a "
             "physical action has been performed."
         ),

@@ -9,7 +9,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write  # Trusted publishing — no token needed
+      id-token: write  # Trusted publishing, no token needed
     steps:
       - uses: actions/checkout@v4
         with:

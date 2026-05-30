@@ -108,12 +108,12 @@ def connect(
                 console.print("[red]No device modules available.[/]")
                 raise typer.Exit(1)
             elif len(available) == 1:
-                # Only one device supported — use it and let the agent
+                # Only one device supported, use it and let the agent
                 # diagnose why it wasn't detected (e.g. WSL2 USB passthrough)
                 device_module = load_module(available[0])
                 console.print(
                     f"[yellow]No device auto-detected. "
-                    f"Proceeding with {available[0]} — "
+                    f"Proceeding with {available[0]}, "
                     f"the agent will help diagnose the connection.[/]"
                 )
             else:
@@ -140,7 +140,7 @@ def connect(
                     console.print(f"[red]Unknown device: {choice}[/]")
                     raise typer.Exit(1)
                 console.print(
-                    f"[yellow]Proceeding with {choice} — "
+                    f"[yellow]Proceeding with {choice}, "
                     f"the agent will help diagnose the connection.[/]"
                 )
 

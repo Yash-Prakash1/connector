@@ -1,4 +1,4 @@
-"""Tier 2: GenericDevice — fallback for devices without a protocol layer."""
+"""Tier 2: GenericDevice, fallback for devices without a protocol layer."""
 
 from __future__ import annotations
 
